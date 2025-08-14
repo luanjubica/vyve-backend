@@ -1,0 +1,204 @@
+// File: internal/repository/person_repository.go
+package repository
+
+import (
+	"context"
+	"errors"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"github.com/vyve/vyve-backend/internal/models"
+)
+
+// PersonRepository defines person data access interface
+type PersonRepository interface {
+	Create(ctx context.Context, person *models.Person) error
+	Update(ctx context.Context, person *models.Person) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	FindByID(ctx context.Context, id uuid.UUID) (*models.Person, error)
+	FindByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Person, error)
+	List(ctx context.Context, opts FilterOptions) ([]*models.Person, *PaginationResult, error)
+	Search(ctx context.Context, userID uuid.UUID, query string, limit int) ([]*models.Person, error)
+	GetCategories(ctx context.Context, userID uuid.UUID) ([]string, error)
+	GetRecentInteractions(ctx context.Context, personID uuid.UUID, limit int) ([]*models.Interaction, error)
+	UpdateHealthScore(ctx context.Context, personID uuid.UUID, score float64) error
+	GetByCategory(ctx context.Context, userID uuid.UUID, category string) ([]*models.Person, error)
+	GetPeopleNeedingAttention(ctx context.Context, userID uuid.UUID) ([]*models.Person, error)
+	GetPeopleForReminders(ctx context.Context, userID uuid.UUID) ([]*models.Person, error)
+	IncrementInteractionCount(ctx context.Context, personID uuid.UUID) error
+	UpdateLastInteraction(ctx context.Context, personID uuid.UUID) error
+}
+
+type personRepository struct {
+	BaseRepository
+}
+
+// NewPersonRepository creates a new person repository
+func NewPersonRepository(db *gorm.DB) PersonRepository {
+	return &personRepository{
+		BaseRepository: NewBaseRepository(db),
+	}
+}
+
+// Create creates a new person
+func (r *personRepository) Create(ctx context.Context, person *models.Person) error {
+	return r.db.WithContext(ctx).Create(person).Error
+}
+
+// Update updates a person
+func (r *personRepository) Update(ctx context.Context, person *models.Person) error {
+	return r.db.WithContext(ctx).Save(person).Error
+}
+
+// Delete soft deletes a person
+func (r *personRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	return r.db.WithContext(ctx).Delete(&models.Person{}, "id = ?", id).Error
+}
+
+// FindByID finds a person by ID
+func (r *personRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.Person, error) {
+	var person models.Person
+	err := r.db.WithContext(ctx).First(&person, "id = ?", id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPersonNotFound
+		}
+		return nil, err
+	}
+	return &person, nil
+}
+
+// FindByUserID finds all people for a user
+func (r *personRepository) FindByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Person, error) {
+	var people []*models.Person
+	err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("name ASC").
+		Find(&people).Error
+	return people, err
+}
+
+// List lists people with pagination
+func (r *personRepository) List(ctx context.Context, opts FilterOptions) ([]*models.Person, *PaginationResult, error) {
+	query := r.db.WithContext(ctx).Model(&models.Person{})
+	
+	// Apply filters
+	if opts.UserID != uuid.Nil {
+		query = query.Where("user_id = ?", opts.UserID)
+	}
+	
+	if opts.Category != "" {
+		query = query.Where("category = ?", opts.Category)
+	}
+	
+	if opts.Search != "" {
+		query = query.Where("name ILIKE ?", "%"+opts.Search+"%")
+	}
+	
+	// Apply ordering
+	if opts.OrderBy != "" {
+		if opts.Desc {
+			query = query.Order(opts.OrderBy + " DESC")
+		} else {
+			query = query.Order(opts.OrderBy + " ASC")
+		}
+	} else {
+		query = query.Order("name ASC")
+	}
+	
+	var people []*models.Person
+	result, err := Paginate(ctx, query, opts.Page, opts.Limit, &people)
+	if err != nil {
+		return nil, nil, err
+	}
+	
+	return people, result, nil
+}
+
+// Search searches people by name
+func (r *personRepository) Search(ctx context.Context, userID uuid.UUID, query string, limit int) ([]*models.Person, error) {
+	var people []*models.Person
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND name ILIKE ?", userID, "%"+query+"%").
+		Limit(limit).
+		Find(&people).Error
+	return people, err
+}
+
+// GetCategories gets unique categories for a user
+func (r *personRepository) GetCategories(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	var categories []string
+	err := r.db.WithContext(ctx).
+		Model(&models.Person{}).
+		Where("user_id = ?", userID).
+		Distinct("category").
+		Pluck("category", &categories).Error
+	return categories, err
+}
+
+// GetRecentInteractions gets recent interactions for a person
+func (r *personRepository) GetRecentInteractions(ctx context.Context, personID uuid.UUID, limit int) ([]*models.Interaction, error) {
+	var interactions []*models.Interaction
+	err := r.db.WithContext(ctx).
+		Where("person_id = ?", personID).
+		Order("interaction_at DESC").
+		Limit(limit).
+		Find(&interactions).Error
+	return interactions, err
+}
+
+// UpdateHealthScore updates a person's health score
+func (r *personRepository) UpdateHealthScore(ctx context.Context, personID uuid.UUID, score float64) error {
+	return r.db.WithContext(ctx).
+		Model(&models.Person{}).
+		Where("id = ?", personID).
+		Update("health_score", score).Error
+}
+
+// GetByCategory gets people by category
+func (r *personRepository) GetByCategory(ctx context.Context, userID uuid.UUID, category string) ([]*models.Person, error) {
+	var people []*models.Person
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND category = ?", userID, category).
+		Find(&people).Error
+	return people, err
+}
+
+// GetPeopleNeedingAttention gets people with low health scores or draining energy patterns
+func (r *personRepository) GetPeopleNeedingAttention(ctx context.Context, userID uuid.UUID) ([]*models.Person, error) {
+	var people []*models.Person
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND (health_score < ? OR energy_pattern = ?)", 
+			userID, 60.0, "draining").
+		Order("health_score ASC").
+		Find(&people).Error
+	return people, err
+}
+
+// GetPeopleForReminders gets people due for reminders
+func (r *personRepository) GetPeopleForReminders(ctx context.Context, userID uuid.UUID) ([]*models.Person, error) {
+	var people []*models.Person
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND next_reminder_at <= NOW()", userID).
+		Find(&people).Error
+	return people, err
+}
+
+// IncrementInteractionCount increments interaction count for a person
+func (r *personRepository) IncrementInteractionCount(ctx context.Context, personID uuid.UUID) error {
+	return r.db.WithContext(ctx).
+		Model(&models.Person{}).
+		Where("id = ?", personID).
+		UpdateColumn("interaction_count", gorm.Expr("interaction_count + ?", 1)).
+		Error
+}
+
+// UpdateLastInteraction updates last interaction timestamp
+func (r *personRepository) UpdateLastInteraction(ctx context.Context, personID uuid.UUID) error {
+	return r.db.WithContext(ctx).
+		Model(&models.Person{}).
+		Where("id = ?", personID).
+		UpdateColumn("last_interaction_at", gorm.Expr("NOW()")).
+		Error
+}
