@@ -15,12 +15,13 @@ import (
 type Handlers struct {
 	Auth        handlers.AuthHandler
 	User        handlers.UserHandler
-	Person      handlers.PersonHandler
+	Person      handlers.PersonHandler  // Handles both person and people operations
 	Interaction handlers.InteractionHandler
 	Reflection  handlers.ReflectionHandler
 	Nudge       handlers.NudgeHandler
 	GDPR        handlers.GDPRHandler
 	Realtime    *realtime.Hub
+	Onboarding  handlers.OnboardingHandler
 }
 
 // Setup sets up all routes
@@ -62,7 +63,8 @@ func setupPublicRoutes(api fiber.Router, h *Handlers) {
 	// Authentication
 	auth := api.Group("/auth")
 	{
-		auth.Post("/register", h.Auth.Register)
+		auth.Post("/signup", h.Auth.Register) // New signup endpoint
+		auth.Post("/register", h.Auth.Register) // Keep for backward compatibility
 		auth.Post("/login", h.Auth.Login)
 		auth.Post("/refresh", h.Auth.RefreshToken)
 		auth.Post("/logout", h.Auth.Logout)
@@ -83,31 +85,52 @@ func setupPublicRoutes(api fiber.Router, h *Handlers) {
 // setupProtectedRoutes sets up protected API routes
 func setupProtectedRoutes(api fiber.Router, h *Handlers) {
 	// User profile
-	user := api.Group("/user")
+	user := api.Group("/users/me")
 	{
-		user.Get("/profile", h.User.GetProfile)
-		user.Put("/profile", h.User.UpdateProfile)
-		user.Delete("/profile", h.User.DeleteAccount)
-		user.Post("/change-password", h.User.ChangePassword)
-		user.Post("/upload-avatar", h.User.UploadAvatar)
-		user.Get("/stats", h.User.GetStats)
-		user.Get("/settings", h.User.GetSettings)
-		user.Put("/settings", h.User.UpdateSettings)
+		// User profile endpoints
+		user.Get("", h.User.GetProfile)           // GET /users/me
+		user.Put("", h.User.UpdateProfile)         // PUT /users/me
+		user.Delete("", h.User.DeleteAccount)      // DELETE /users/me
+		
+		// User settings endpoints
+		settings := user.Group("/settings")
+		{
+			settings.Get("", h.User.GetSettings)     // GET /users/me/settings
+			settings.Put("", h.User.UpdateSettings)   // PUT /users/me/settings
+		}
+		
+		// User stats endpoint
+		user.Get("/stats", h.User.GetStats)        // GET /users/me/stats
+		
+		// Authentication related endpoints
+		user.Post("/change-password", h.User.ChangePassword)  // POST /users/me/change-password
+		user.Post("/upload-avatar", h.User.UploadAvatar)      // POST /users/me/upload-avatar
+		
+		// Onboarding
+		onboarding := user.Group("/onboarding")
+		{
+			onboarding.Get("", h.Onboarding.GetOnboardingStatus)     // GET /users/me/onboarding
+			onboarding.Post("/complete", h.Onboarding.CompleteOnboarding) // POST /users/me/onboarding/complete
+		}
 		
 		// OAuth account linking
-		user.Post("/link/:provider", h.User.LinkOAuthAccount)
-		user.Delete("/unlink/:provider", h.User.UnlinkOAuthAccount)
+		oauth := user.Group("/oauth")
+		{
+			oauth.Post("/link/:provider", h.User.LinkOAuthAccount)     // POST /users/me/oauth/link/:provider
+			oauth.Delete("/unlink/:provider", h.User.UnlinkOAuthAccount) // DELETE /users/me/oauth/unlink/:provider
+		}
 		
 		// Push notifications
-		user.Post("/push-token", h.User.RegisterPushToken)
-		user.Delete("/push-token/:token", h.User.DeactivatePushToken)
+		user.Post("/push-token", h.User.RegisterPushToken)            // POST /users/me/push-token
+		user.Delete("/push-token/:token", h.User.DeactivatePushToken) // DELETE /users/me/push-token/:token
 	}
 	
 	// People (relationships)
 	people := api.Group("/people")
 	{
-		people.Get("/", h.Person.List)
-		people.Post("/", h.Person.Create)
+		people.Get("", h.Person.List)           // GET /people
+		people.Post("", h.Person.Create)        // POST /people
+		people.Get("/count", h.Person.CountPeople) // GET /people/count
 		people.Get("/:id", h.Person.Get)
 		people.Put("/:id", h.Person.Update)
 		people.Delete("/:id", h.Person.Delete)
