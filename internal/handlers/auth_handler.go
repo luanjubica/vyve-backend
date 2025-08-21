@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/vyve/vyve-backend/internal/repository"
 	"github.com/vyve/vyve-backend/internal/services"
 )
 
@@ -77,7 +79,16 @@ func (h *authHandler) Login(c *fiber.Ctx) error {
 	// Login user
 	response, err := h.authService.Login(c.Context(), req)
 	if err != nil {
-		return err
+		if err == repository.ErrInvalidCredentials {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid email or password",
+			})
+		}
+		// Log the actual error for debugging
+		fmt.Printf("Login error: %v\n", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Internal server error",
+		})
 	}
 
 	// Store user activity

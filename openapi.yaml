@@ -1,0 +1,1164 @@
+openapi: 3.0.3
+info:
+  title: Vyve API
+  version: 1.0.0
+  description: >
+    Vyve Backend API for authentication, users, people/relationships, interactions, reflections, nudges, analytics, and GDPR operations.
+    Note: Person uses normalized dictionary IDs (category_id, communication_method_id, relationship_status_id, intention_id).
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Dev
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: People
+  - name: Interactions
+  - name: Reflections
+  - name: Nudges
+  - name: GDPR
+  - name: Search
+  - name: Analytics
+  - name: Admin
+  - name: System
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email/username and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: JWT tokens
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout / revoke refresh token
+      responses:
+        '204': { description: Logged out }
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+    patch:
+      tags: [Users]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateUserRequest' }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /users/me/avatar:
+    post:
+      tags: [Users]
+      summary: Upload avatar
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /users/me/settings:
+    get:
+      tags: [Users]
+      summary: Get settings
+      responses:
+        '200':
+          description: Settings JSON
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+    patch:
+      tags: [Users]
+      summary: Update settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated settings
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /people:
+    get:
+      tags: [People]
+      summary: List people
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: category_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: order_by
+          in: query
+          schema: { type: string, example: name }
+      responses:
+        '200':
+          description: People list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedPeople' }
+    post:
+      tags: [People]
+      summary: Create person
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePersonRequest' }
+      responses:
+        '201':
+          description: Created person
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Person' }
+
+  /people/search:
+    get:
+      tags: [People, Search]
+      summary: Search people by name
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Person' }
+
+  /people/categories:
+    get:
+      tags: [People]
+      summary: List available category names for user
+      responses:
+        '200':
+          description: Category names
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+
+  /people/{id}:
+    get:
+      tags: [People]
+      summary: Get person by ID
+      parameters:
+        - $ref: '#/components/parameters/personId'
+      responses:
+        '200':
+          description: Person
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Person' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [People]
+      summary: Update person
+      parameters:
+        - $ref: '#/components/parameters/personId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePersonRequest' }
+      responses:
+        '200':
+          description: Updated person
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Person' }
+    delete:
+      tags: [People]
+      summary: Delete person
+      parameters:
+        - $ref: '#/components/parameters/personId'
+      responses:
+        '204': { description: Deleted }
+
+  /interactions:
+    get:
+      tags: [Interactions]
+      summary: List interactions
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - name: person_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: start_date
+          in: query
+          schema: { type: string, format: date-time }
+        - name: end_date
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Interactions list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedInteractions' }
+    post:
+      tags: [Interactions]
+      summary: Create interaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateInteractionRequest' }
+      responses:
+        '201':
+          description: Created interaction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Interaction' }
+
+  /interactions/{id}:
+    get:
+      tags: [Interactions]
+      summary: Get interaction
+      parameters: [ { $ref: '#/components/parameters/interactionId' } ]
+      responses:
+        '200':
+          description: Interaction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Interaction' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Interactions]
+      summary: Update interaction
+      parameters: [ { $ref: '#/components/parameters/interactionId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateInteractionRequest' }
+      responses:
+        '200':
+          description: Updated interaction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Interaction' }
+    delete:
+      tags: [Interactions]
+      summary: Delete interaction
+      parameters: [ { $ref: '#/components/parameters/interactionId' } ]
+      responses:
+        '204': { description: Deleted }
+
+  /interactions/recent:
+    get:
+      tags: [Interactions]
+      summary: Get recent interactions
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+      responses:
+        '200':
+          description: Recent interactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Interaction' }
+
+  /interactions/energy-distribution:
+    get:
+      tags: [Interactions, Analytics]
+      summary: Get energy distribution for a period
+      parameters:
+        - name: start_date
+          in: query
+          schema: { type: string, format: date-time }
+        - name: end_date
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Distribution
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  energizing: { type: integer }
+                  neutral: { type: integer }
+                  draining: { type: integer }
+
+  /interactions/bulk:
+    post:
+      tags: [Interactions]
+      summary: Bulk create interactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              minItems: 1
+              items: { $ref: '#/components/schemas/CreateInteractionRequest' }
+      responses:
+        '201':
+          description: Created interactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Interaction' }
+
+  /reflections:
+    get:
+      tags: [Reflections]
+      summary: List reflections
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Reflections
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedReflections' }
+    post:
+      tags: [Reflections]
+      summary: Create reflection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateReflectionRequest' }
+      responses:
+        '201':
+          description: Created reflection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reflection' }
+
+  /reflections/{id}:
+    get:
+      tags: [Reflections]
+      summary: Get reflection
+      parameters: [ { $ref: '#/components/parameters/reflectionId' } ]
+      responses:
+        '200':
+          description: Reflection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reflection' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Reflections]
+      summary: Update reflection
+      parameters: [ { $ref: '#/components/parameters/reflectionId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateReflectionRequest' }
+      responses:
+        '200':
+          description: Updated reflection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reflection' }
+    delete:
+      tags: [Reflections]
+      summary: Delete reflection
+      parameters: [ { $ref: '#/components/parameters/reflectionId' } ]
+      responses:
+        '204': { description: Deleted }
+
+  /reflections/today:
+    get:
+      tags: [Reflections]
+      summary: Get today's reflection (if any)
+      responses:
+        '200':
+          description: Today reflection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reflection' }
+
+  /reflections/streak:
+    get:
+      tags: [Reflections, Analytics]
+      summary: Get reflection streak
+      responses:
+        '200':
+          description: Streak
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  streak_count: { type: integer }
+
+  /reflections/prompts:
+    get:
+      tags: [Reflections]
+      summary: Get reflection prompts
+      responses:
+        '200':
+          description: Prompts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+
+  /nudges:
+    get:
+      tags: [Nudges]
+      summary: List nudges
+      responses:
+        '200':
+          description: Nudges
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Nudge' }
+
+  /nudges/active:
+    get:
+      tags: [Nudges]
+      summary: Get active nudges
+      responses:
+        '200':
+          description: Active nudges
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Nudge' }
+
+  /nudges/history:
+    get:
+      tags: [Nudges]
+      summary: Get nudge history
+      responses:
+        '200':
+          description: History
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Nudge' }
+
+  /nudges/{id}:
+    get:
+      tags: [Nudges]
+      summary: Get nudge
+      parameters: [ { $ref: '#/components/parameters/nudgeId' } ]
+      responses:
+        '200':
+          description: Nudge
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Nudge' }
+
+  /nudges/{id}/seen:
+    post:
+      tags: [Nudges]
+      summary: Mark nudge seen
+      parameters: [ { $ref: '#/components/parameters/nudgeId' } ]
+      responses:
+        '204': { description: Updated }
+
+  /nudges/{id}/acted:
+    post:
+      tags: [Nudges]
+      summary: Mark nudge acted
+      parameters: [ { $ref: '#/components/parameters/nudgeId' } ]
+      responses:
+        '204': { description: Updated }
+
+  /nudges/{id}/dismiss:
+    post:
+      tags: [Nudges]
+      summary: Dismiss nudge
+      parameters: [ { $ref: '#/components/parameters/nudgeId' } ]
+      responses:
+        '204': { description: Updated }
+
+  /gdpr/consents:
+    get:
+      tags: [GDPR]
+      summary: Get consent records
+      responses:
+        '200':
+          description: Consents
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/UserConsent' }
+    post:
+      tags: [GDPR]
+      summary: Update/record consent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateConsentRequest' }
+      responses:
+        '200':
+          description: Updated consent
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserConsent' }
+
+  /gdpr/export:
+    post:
+      tags: [GDPR]
+      summary: Request data export
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format:
+                  type: string
+                  enum: [json, csv]
+                  default: json
+      responses:
+        '202':
+          description: Export accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataExport' }
+
+  /gdpr/export/{id}:
+    get:
+      tags: [GDPR]
+      summary: Get export status
+      parameters: [ { $ref: '#/components/parameters/exportId' } ]
+      responses:
+        '200':
+          description: Export status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataExport' }
+
+  /gdpr/export/{id}/download:
+    get:
+      tags: [GDPR]
+      summary: Download export file (signed URL)
+      parameters: [ { $ref: '#/components/parameters/exportId' } ]
+      responses:
+        '200':
+          description: File link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string, format: uri }
+
+  /gdpr/delete:
+    post:
+      tags: [GDPR]
+      summary: Delete all user data (account deletion)
+      responses:
+        '202': { description: Deletion requested }
+
+  /gdpr/anonymize:
+    post:
+      tags: [GDPR]
+      summary: Anonymize user data
+      responses:
+        '202': { description: Anonymization requested }
+
+  /gdpr/audit-log:
+    get:
+      tags: [GDPR]
+      summary: Get audit log
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Audit log
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedAuditLogs' }
+
+  /search:
+    get:
+      tags: [Search]
+      summary: Global search
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  people:
+                    type: array
+                    items: { $ref: '#/components/schemas/Person' }
+
+  /search/suggestions:
+    get:
+      tags: [Search]
+      summary: Search suggestions
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: Create new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignupRequest' }
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400':
+          description: Bad request (e.g., invalid input)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /people/count:
+    get:
+      tags: [People]
+      summary: Get total count of people for the current user
+      description: Returns the total number of people/relationships for the authenticated user. This includes all active and inactive relationships.
+      operationId: countPeople
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count]
+                properties:
+                  count: 
+                    type: integer
+                    format: int64
+                    minimum: 0
+                    description: Total number of people for the current user
+                    example: 42
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /users/me/onboarding:
+    get:
+      tags: [Users]
+      summary: Get user's onboarding status
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Users]
+      summary: Mark onboarding as completed
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                completed:
+                  type: boolean
+                  description: Whether onboarding is completed
+              required: [completed]
+      responses:
+        '200':
+          description: Onboarding status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingStatus'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    personId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    interactionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    reflectionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    nudgeId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    exportId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+    Timestamp:
+      type: string
+      format: date-time
+
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        message: { type: string }
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, example: Bearer }
+        expires_in: { type: integer }
+
+    LoginRequest:
+      type: object
+      properties:
+        username: { type: string }
+        email: { type: string }
+        password: { type: string }
+      required: [password]
+
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token: { type: string }
+      required: [refresh_token]
+
+    User:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        username: { type: string }
+        email: { type: string }
+        email_verified: { type: boolean }
+        avatar_url: { type: string }
+        display_name: { type: string }
+        bio: { type: string }
+        timezone: { type: string }
+        locale: { type: string }
+        last_login_at: { $ref: '#/components/schemas/Timestamp' }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+
+    CreatePersonRequest:
+      type: object
+      properties:
+        name: { type: string }
+        relationship: { type: string }
+        category_id: { $ref: '#/components/schemas/UUID' }
+        communication_method_id: { $ref: '#/components/schemas/UUID' }
+        relationship_status_id: { $ref: '#/components/schemas/UUID' }
+        intention_id: { $ref: '#/components/schemas/UUID' }
+        context:
+          type: array
+          items: { type: string }
+        notes: { type: string }
+      required: [name]
+
+    UpdatePersonRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreatePersonRequest'
+
+    Person:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        user_id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        relationship: { type: string }
+        category_id: { $ref: '#/components/schemas/UUID' }
+        communication_method_id: { $ref: '#/components/schemas/UUID' }
+        relationship_status_id: { $ref: '#/components/schemas/UUID' }
+        intention_id: { $ref: '#/components/schemas/UUID' }
+        context:
+          type: array
+          items: { type: string }
+        notes: { type: string }
+        health_score: { type: number, format: float }
+        reminder_frequency: { type: string }
+        next_reminder_at: { $ref: '#/components/schemas/Timestamp' }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+
+    CreateInteractionRequest:
+      type: object
+      properties:
+        person_id: { $ref: '#/components/schemas/UUID' }
+        energy_pattern_id: { $ref: '#/components/schemas/UUID' }
+        communication_method_id: { $ref: '#/components/schemas/UUID' }
+        relationship_status_id: { $ref: '#/components/schemas/UUID' }
+        intention_id: { $ref: '#/components/schemas/UUID' }
+        interaction_at: { $ref: '#/components/schemas/Timestamp' }
+        notes: { type: string }
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [person_id]
+
+    UpdateInteractionRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateInteractionRequest'
+
+    Interaction:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        user_id: { $ref: '#/components/schemas/UUID' }
+        person_id: { $ref: '#/components/schemas/UUID' }
+        energy_pattern_id: { $ref: '#/components/schemas/UUID' }
+        communication_method_id: { $ref: '#/components/schemas/UUID' }
+        relationship_status_id: { $ref: '#/components/schemas/UUID' }
+        intention_id: { $ref: '#/components/schemas/UUID' }
+        interaction_at: { $ref: '#/components/schemas/Timestamp' }
+        notes: { type: string }
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+
+    CreateReflectionRequest:
+      type: object
+      properties:
+        mood: { type: string }
+        notes: { type: string }
+        completed_at: { $ref: '#/components/schemas/Timestamp' }
+
+    UpdateReflectionRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateReflectionRequest'
+
+    Reflection:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        user_id: { $ref: '#/components/schemas/UUID' }
+        mood: { type: string }
+        notes: { type: string }
+        completed_at: { $ref: '#/components/schemas/Timestamp' }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+
+    Nudge:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        user_id: { $ref: '#/components/schemas/UUID' }
+        type: { type: string }
+        title: { type: string }
+        message: { type: string }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        seen_at: { $ref: '#/components/schemas/Timestamp' }
+        acted_at: { $ref: '#/components/schemas/Timestamp' }
+        dismissed_at: { $ref: '#/components/schemas/Timestamp' }
+
+    UserConsent:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        user_id: { $ref: '#/components/schemas/UUID' }
+        consent_type: { type: string }
+        granted: { type: boolean }
+        version: { type: string }
+        ip_address: { type: string }
+        user_agent: { type: string }
+        granted_at: { $ref: '#/components/schemas/Timestamp' }
+        revoked_at: { $ref: '#/components/schemas/Timestamp' }
+
+    OnboardingStatus:
+      type: object
+      description: Represents the onboarding status of a user
+      properties:
+        completed:
+          type: boolean
+          description: Whether the onboarding process is completed
+          example: false
+        current_step:
+          type: integer
+          description: The current step in the onboarding process (1-based index)
+          minimum: 1
+          example: 2
+        total_steps:
+          type: integer
+          description: Total number of steps in the onboarding process
+          minimum: 1
+          example: 5
+        last_updated:
+          $ref: '#/components/schemas/Timestamp'
+          description: When the onboarding status was last updated
+      required:
+        - completed
+        - current_step
+        - total_steps
+        - last_updated
+
+    DataExport:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        user_id: { $ref: '#/components/schemas/UUID' }
+        status: { type: string, enum: [pending, processing, completed, failed] }
+        format: { type: string, enum: [json, csv] }
+        file_url: { type: string, format: uri }
+        file_size: { type: integer }
+        requested_at: { $ref: '#/components/schemas/Timestamp' }
+        completed_at: { $ref: '#/components/schemas/Timestamp' }
+        expires_at: { $ref: '#/components/schemas/Timestamp' }
+        error: { type: string }
+
+    PaginatedPeople:
+      type: object
+      properties:
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+        total_pages: { type: integer }
+        has_next: { type: boolean }
+        has_previous: { type: boolean }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Person' }
+
+    PaginatedInteractions:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedPeople'
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Interaction' }
+
+    PaginatedReflections:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedPeople'
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Reflection' }
+    
+    SignupRequest:
+      type: object
+      properties:
+        username: 
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: '^[a-zA-Z0-9_]+$'
+          description: Username (alphanumeric and underscores only)
+        email: 
+          type: string
+          format: email
+          description: User's email address
+        password: 
+          type: string
+          minLength: 8
+          format: password
+          description: Password (min 8 characters)
+        display_name: 
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: User's display name
+      required: [username, email, password]
+      
+    OnboardingStatus:
+      type: object
+      properties:
+        completed:
+          type: boolean
+          description: Whether the user has completed onboarding
+        completed_steps:
+          type: array
+          items:
+            type: string
+          description: List of completed onboarding step IDs
+        current_step:
+          type: string
+          description: Current onboarding step ID
+        last_updated:
+          $ref: '#/components/schemas/Timestamp'
+      required: [completed, completed_steps]
+
+    PaginatedAuditLogs:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedPeople'
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { $ref: '#/components/schemas/UUID' }
+              user_id: { $ref: '#/components/schemas/UUID' }
+              action: { type: string }
+              entity_type: { type: string }
+              entity_id: { type: string }
+              changes: { type: object, additionalProperties: true }
+              ip_address: { type: string }
+              user_agent: { type: string }
+              request_id: { type: string }
+              session_id: { type: string }
+              result: { type: string }
+              error_message: { type: string }
+              created_at: { $ref: '#/components/schemas/Timestamp' }

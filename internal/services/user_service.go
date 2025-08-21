@@ -2,12 +2,21 @@ package services
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vyve/vyve-backend/internal/models"
 	"github.com/vyve/vyve-backend/internal/repository"
 	"github.com/vyve/vyve-backend/pkg/storage"
 )
+
+// OnboardingStatus represents the onboarding status of a user
+type OnboardingStatus struct {
+	Completed     bool      `json:"completed"`
+	CompletedSteps []string  `json:"completed_steps"`
+	CurrentStep   string    `json:"current_step,omitempty"`
+	LastUpdated   time.Time `json:"last_updated"`
+}
 
 // UserService handles user business logic
 type UserService interface {
@@ -21,6 +30,10 @@ type UserService interface {
 	RegisterPushToken(ctx context.Context, userID uuid.UUID, token string, platform string) error
 	DeactivatePushToken(ctx context.Context, token string) error
 	GetPushTokens(ctx context.Context, userID uuid.UUID) ([]*models.PushToken, error)
+	
+	// Onboarding related methods
+	GetOnboardingStatus(ctx context.Context, userID uuid.UUID) (*OnboardingStatus, error)
+	UpdateOnboardingStatus(ctx context.Context, userID uuid.UUID, completed bool, currentStep string) (*OnboardingStatus, error)
 }
 
 type userService struct {
@@ -139,6 +152,40 @@ func (s *userService) UpdateSettings(ctx context.Context, userID uuid.UUID, sett
 	return s.userRepo.Update(ctx, user)
 }
 
+// GetSettings gets user settings
+func (s *userService) GetSettings(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return settings from user model
+	if user.Settings == nil {
+		return make(map[string]interface{}), nil
+	}
+
+	return user.Settings, nil
+}
+
+// UpdateSettings updates user settings
+func (s *userService) UpdateSettings(ctx context.Context, userID uuid.UUID, settings map[string]interface{}) error {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// Merge settings
+	if user.Settings == nil {
+		user.Settings = make(models.JSONB)
+	}
+	
+	for key, value := range settings {
+		user.Settings[key] = value
+	}
+
+	return s.userRepo.Update(ctx, user)
+}
+
 // RegisterPushToken registers a push notification token
 func (s *userService) RegisterPushToken(ctx context.Context, userID uuid.UUID, token string, platform string) error {
 	pushToken := &models.PushToken{
@@ -158,5 +205,78 @@ func (s *userService) DeactivatePushToken(ctx context.Context, token string) err
 
 // GetPushTokens gets user's push tokens
 func (s *userService) GetPushTokens(ctx context.Context, userID uuid.UUID) ([]*models.PushToken, error) {
-	return s.userRepo.GetUserPushTokens(ctx, userID)
+	return s.userRepo.GetPushTokens(ctx, userID)
+}
+
+// GetOnboardingStatus gets the user's onboarding status
+func (s *userService) GetOnboardingStatus(ctx context.Context, userID uuid.UUID) (*OnboardingStatus, error) {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Default onboarding status if not set
+	status := &OnboardingStatus{
+		Completed:     user.OnboardingCompleted,
+		CompletedSteps: []string{},
+		LastUpdated:   time.Now(),
+	}
+
+	// If we have onboarding steps in the database, load them
+	if user.OnboardingSteps != nil {
+		if steps, ok := user.OnboardingSteps.([]interface{}); ok {
+			for _, step := range steps {
+				if stepStr, ok := step.(string); ok {
+					status.CompletedSteps = append(status.CompletedSteps, stepStr)
+				}
+			}
+		}
+	}
+
+	// If onboarding is marked as completed but no steps are recorded, add a default step
+	if status.Completed && len(status.CompletedSteps) == 0 {
+		status.CompletedSteps = []string{"welcome", "people_added", "first_interaction"}
+	}
+
+	return status, nil
+}
+
+// UpdateOnboardingStatus updates the user's onboarding status
+func (s *userService) UpdateOnboardingStatus(ctx context.Context, userID uuid.UUID, completed bool, currentStep string) (*OnboardingStatus, error) {
+	updates := map[string]interface{}{
+		"onboarding_completed": completed,
+	}
+
+	// If we're completing a step, add it to the completed steps
+	if currentStep != "" {
+		currentStatus, err := s.GetOnboardingStatus(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check if step is already completed
+		stepExists := false
+		for _, step := range currentStatus.CompletedSteps {
+			if step == currentStep {
+				stepExists = true
+				break
+			}
+		}
+
+		// Add the step if it doesn't exist
+		if !stepExists {
+			currentStatus.CompletedSteps = append(currentStatus.CompletedSteps, currentStep)
+		}
+
+		updates["onboarding_steps"] = currentStatus.CompletedSteps
+	}
+
+	// Update the user
+	_, err := s.Update(ctx, userID, updates)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return the updated status
+	return s.GetOnboardingStatus(ctx, userID)
 }

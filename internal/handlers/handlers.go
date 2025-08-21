@@ -64,17 +64,23 @@ type UserHandler interface {
 
 // PersonHandler defines person handler interface
 type PersonHandler interface {
+	// Core CRUD operations
 	List(c *fiber.Ctx) error
 	Create(c *fiber.Ctx) error
 	Get(c *fiber.Ctx) error
 	Update(c *fiber.Ctx) error
 	Delete(c *fiber.Ctx) error
 	Restore(c *fiber.Ctx) error
+
+	// Extended operations
 	GetInteractions(c *fiber.Ctx) error
 	GetHealthScore(c *fiber.Ctx) error
 	UpdateReminder(c *fiber.Ctx) error
 	Search(c *fiber.Ctx) error
 	GetCategories(c *fiber.Ctx) error
+	
+	// People operations
+	CountPeople(c *fiber.Ctx) error
 }
 
 // InteractionHandler defines interaction handler interface

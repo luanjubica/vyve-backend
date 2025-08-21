@@ -21,6 +21,7 @@ import (
 
 	"github.com/vyve/vyve-backend/internal/config"
 	"github.com/vyve/vyve-backend/internal/handlers"
+	"github.com/vyve/vyve-backend/internal/models"
 	"github.com/vyve/vyve-backend/internal/realtime"
 	"github.com/vyve/vyve-backend/internal/repository"
 	"github.com/vyve/vyve-backend/internal/routes"
@@ -29,7 +30,6 @@ import (
 	"github.com/vyve/vyve-backend/pkg/cache"
 	"github.com/vyve/vyve-backend/pkg/notifications"
 	"github.com/vyve/vyve-backend/pkg/storage"
-	"github.com/vyve/vyve-backend/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -110,7 +110,7 @@ func main() {
 
 	// Load configuration
 	cfg := config.Load()
-	
+
 	// Set up logging
 	setupLogging(cfg)
 
@@ -127,9 +127,9 @@ func main() {
 			_ = sqlDB.Close()
 		}
 	}()
-	if err := migrateDatabase(db); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
-	}
+	// if err := migrateDatabase(db); err != nil {
+	// 	log.Fatalf("Failed to run migrations: %v", err)
+	// }
 
 	// Initialize Redis cache
 	redisClient, err := cache.NewRedisClient(cfg.Redis)
@@ -158,6 +158,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	userHandler := handlers.NewUserHandler(userService)
+	onboardingHandler := handlers.NewOnboardingHandler(userService)
 	personHandler := handlers.NewPersonHandler(personService)
 	interactionHandler := handlers.NewInteractionHandler(interactionService)
 	reflectionHandler := handlers.NewReflectionHandler(reflectionService)
@@ -187,13 +188,14 @@ func main() {
 	routes.Setup(app, &routes.Handlers{
 		Auth:        authHandler,
 		User:        userHandler,
-		Person:      personHandler,
+		Person:      personHandler,     // Now handles both person and people operations
 		Interaction: interactionHandler,
 		Reflection:  reflectionHandler,
 		Nudge:       nudgeHandler,
 		GDPR:        gdprHandler,
 		Realtime:    hub,
-	}, authService, cfg) 
+		Onboarding:  onboardingHandler,
+	}, authService, cfg)
 
 	// Start background workers
 	startBackgroundWorkers(cfg, repos, notificationService, analyticsService)
@@ -283,7 +285,7 @@ func initializeStorage(cfg *config.Config) storage.Storage {
 		}
 		return s3Storage
 	}
-	
+
 	minioStorage, err := storage.NewMinIOStorage(cfg.Storage)
 	if err != nil {
 		log.Fatalf("Failed to initialize MinIO storage: %v", err)
@@ -321,7 +323,7 @@ func startBackgroundWorkers(
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
-		
+
 		for range ticker.C {
 			services.SendDailyReminders(repos.User, notificationService)
 		}
@@ -331,7 +333,7 @@ func startBackgroundWorkers(
 	go func() {
 		ticker := time.NewTicker(30 * time.Minute)
 		defer ticker.Stop()
-		
+
 		for range ticker.C {
 			services.GenerateNudges(repos, analyticsService, notificationService)
 		}
@@ -341,7 +343,7 @@ func startBackgroundWorkers(
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
-		
+
 		for range ticker.C {
 			services.AggregateMetrics(repos, analyticsService)
 		}

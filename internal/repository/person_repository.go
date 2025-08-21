@@ -89,7 +89,7 @@ func (r *personRepository) List(ctx context.Context, opts FilterOptions) ([]*mod
 	}
 	
 	if opts.Category != "" {
-		query = query.Where("category = ?", opts.Category)
+		query = query.Where("category_id = ?", opts.Category)
 	}
 	
 	if opts.Search != "" {
@@ -128,13 +128,14 @@ func (r *personRepository) Search(ctx context.Context, userID uuid.UUID, query s
 
 // GetCategories gets unique categories for a user
 func (r *personRepository) GetCategories(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	var categories []string
+	type row struct{ Name string }
+	var names []string
 	err := r.db.WithContext(ctx).
-		Model(&models.Person{}).
+		Table("categories").
 		Where("user_id = ?", userID).
-		Distinct("category").
-		Pluck("category", &categories).Error
-	return categories, err
+		Order("name ASC").
+		Pluck("name", &names).Error
+	return names, err
 }
 
 // GetRecentInteractions gets recent interactions for a person
@@ -158,9 +159,18 @@ func (r *personRepository) UpdateHealthScore(ctx context.Context, personID uuid.
 
 // GetByCategory gets people by category
 func (r *personRepository) GetByCategory(ctx context.Context, userID uuid.UUID, category string) ([]*models.Person, error) {
+	var catID uuid.UUID
+	if err := r.db.WithContext(ctx).
+		Table("categories").
+		Select("id").
+		Where("user_id = ? AND name = ?", userID, category).
+		Limit(1).
+		Scan(&catID).Error; err != nil {
+		return nil, err
+	}
 	var people []*models.Person
 	err := r.db.WithContext(ctx).
-		Where("user_id = ? AND category = ?", userID, category).
+		Where("user_id = ? AND category_id = ?", userID, catID).
 		Find(&people).Error
 	return people, err
 }
@@ -168,9 +178,9 @@ func (r *personRepository) GetByCategory(ctx context.Context, userID uuid.UUID, 
 // GetPeopleNeedingAttention gets people with low health scores or draining energy patterns
 func (r *personRepository) GetPeopleNeedingAttention(ctx context.Context, userID uuid.UUID) ([]*models.Person, error) {
 	var people []*models.Person
+	sub := r.db.Table("energy_patterns").Select("id").Where("name = ?", "draining")
 	err := r.db.WithContext(ctx).
-		Where("user_id = ? AND (health_score < ? OR energy_pattern = ?)", 
-			userID, 60.0, "draining").
+		Where("user_id = ? AND (health_score < ? OR energy_pattern_id IN (?))", userID, 60.0, sub).
 		Order("health_score ASC").
 		Find(&people).Error
 	return people, err
