@@ -85,6 +85,10 @@ type User struct {
 	Metadata         JSONB            `gorm:"type:jsonb" json:"metadata"`
 	DataResidency    string           `gorm:"default:'us'" json:"data_residency"` // us, eu, etc.
 	
+	// Add these onboarding fields:
+	OnboardingCompleted bool  `gorm:"default:false" json:"onboarding_completed"`
+	OnboardingSteps     JSONB `gorm:"type:jsonb" json:"onboarding_steps"`
+
 	// Relations
 	AuthProviders []AuthProvider `json:"-"`
 	People        []Person       `json:"-"`

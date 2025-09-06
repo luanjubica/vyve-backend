@@ -468,23 +468,23 @@ func (s *authService) ChangePassword(ctx context.Context, userID uuid.UUID, oldP
 }
 
 func (s *authService) HandleGoogleAuth(ctx context.Context, code string) (*AuthResponse, error) {
-	// TODO: Implement Google OAuth
-	return nil, errors.New("not implemented")
+    // TODO: Implement Google OAuth
+    return nil, errors.New("not implemented 210")
 }
 
 func (s *authService) HandleLinkedInAuth(ctx context.Context, code string) (*AuthResponse, error) {
-	// TODO: Implement LinkedIn OAuth
-	return nil, errors.New("not implemented")
+    // TODO: Implement LinkedIn OAuth
+    return nil, errors.New("not implemented 211")
 }
 
 func (s *authService) HandleAppleAuth(ctx context.Context, code string) (*AuthResponse, error) {
-	// TODO: Implement Apple OAuth
-	return nil, errors.New("not implemented")
+    // TODO: Implement Apple OAuth
+    return nil, errors.New("not implemented 212")
 }
 
 func (s *authService) LinkOAuthAccount(ctx context.Context, userID uuid.UUID, provider string, code string) error {
-	// TODO: Implement
-	return errors.New("not implemented")
+    // TODO: Implement
+    return errors.New("not implemented 213")
 }
 
 func (s *authService) UnlinkOAuthAccount(ctx context.Context, userID uuid.UUID, provider string) error {
@@ -496,16 +496,16 @@ func (s *authService) RevokeToken(ctx context.Context, token string) error {
 }
 
 func (s *authService) CreateSession(ctx context.Context, userID uuid.UUID, metadata SessionMetadata) (*Session, error) {
-	// TODO: Implement
-	return nil, errors.New("not implemented")
+    // TODO: Implement
+    return nil, errors.New("not implemented 214")
 }
 
 func (s *authService) GetSession(ctx context.Context, sessionID string) (*Session, error) {
-	// TODO: Implement
-	return nil, errors.New("not implemented")
+    // TODO: Implement
+    return nil, errors.New("not implemented 215")
 }
 
 func (s *authService) EndSession(ctx context.Context, sessionID string) error {
-	// TODO: Implement
-	return errors.New("not implemented")
+    // TODO: Implement
+    return errors.New("not implemented 216")
 }

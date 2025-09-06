@@ -54,12 +54,12 @@ func (r *reflectionRepository) FindByID(ctx context.Context, id uuid.UUID) (*mod
 
 func (r *reflectionRepository) GetToday(ctx context.Context, userID uuid.UUID) (*models.Reflection, error) {
 	// Stub implementation
-	return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented 300")
 }
 
 func (r *reflectionRepository) List(ctx context.Context, opts FilterOptions) ([]*models.Reflection, *PaginationResult, error) {
 	// Stub implementation
-	return nil, nil, errors.New("not implemented")
+	return nil, nil, errors.New("not implemented 301")
 }
 
 // NudgeRepository defines nudge data access interface
@@ -108,7 +108,7 @@ func (r *nudgeRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.N
 
 func (r *nudgeRepository) GetActive(ctx context.Context, userID uuid.UUID) ([]*models.Nudge, error) {
 	// Stub implementation
-	return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented 302")
 }
 
 func (r *nudgeRepository) MarkSeen(ctx context.Context, id uuid.UUID) error {
@@ -133,7 +133,7 @@ func (r *nudgeRepository) MarkActedOn(ctx context.Context, id uuid.UUID) error {
 
 func (r *nudgeRepository) List(ctx context.Context, opts FilterOptions) ([]*models.Nudge, *PaginationResult, error) {
 	// Stub implementation
-	return nil, nil, errors.New("not implemented")
+	return nil, nil, errors.New("not implemented 303")
 }
 
 // EventRepository defines event data access interface
@@ -160,12 +160,12 @@ func (r *eventRepository) Create(ctx context.Context, event *models.Event) error
 
 func (r *eventRepository) List(ctx context.Context, opts FilterOptions) ([]*models.Event, *PaginationResult, error) {
 	// Stub implementation
-	return nil, nil, errors.New("not implemented")
+	return nil, nil, errors.New("not implemented 304")
 }
 
 func (r *eventRepository) GetByType(ctx context.Context, userID uuid.UUID, eventType string) ([]*models.Event, error) {
 	// Stub implementation
-	return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented 305")
 }
 
 // ConsentRepository defines consent data access interface
@@ -197,12 +197,12 @@ func (r *consentRepository) Update(ctx context.Context, consent *models.UserCons
 
 func (r *consentRepository) GetByUser(ctx context.Context, userID uuid.UUID) ([]*models.UserConsent, error) {
 	// Stub implementation
-	return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented 306")
 }
 
 func (r *consentRepository) GetByType(ctx context.Context, userID uuid.UUID, consentType string) (*models.UserConsent, error) {
 	// Stub implementation
-	return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented 307")
 }
 
 // AuditLogRepository defines audit log data access interface
@@ -229,12 +229,12 @@ func (r *auditLogRepository) Create(ctx context.Context, log *models.AuditLog) e
 
 func (r *auditLogRepository) List(ctx context.Context, opts FilterOptions) ([]*models.AuditLog, *PaginationResult, error) {
 	// Stub implementation
-	return nil, nil, errors.New("not implemented")
+	return nil, nil, errors.New("not implemented 308")
 }
 
 func (r *auditLogRepository) GetByUser(ctx context.Context, userID uuid.UUID) ([]*models.AuditLog, error) {
 	// Stub implementation
-	return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented 309")
 }
 
 // DataExportRepository defines data export data access interface
@@ -275,5 +275,5 @@ func (r *dataExportRepository) FindByID(ctx context.Context, id uuid.UUID) (*mod
 
 func (r *dataExportRepository) GetPending(ctx context.Context, userID uuid.UUID) (*models.DataExport, error) {
 	// Stub implementation
-	return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented 310")
 }
