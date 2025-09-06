@@ -3,74 +3,9 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/vyve/vyve-backend/internal/services"
-	"github.com/vyve/vyve-backend/internal/middleware"
 )
 
-// PersonHandler stub implementation
-type personHandler struct {
-	personService services.PersonService
-}
-
-// NewPersonHandler creates a new person handler
-func NewPersonHandler(personService services.PersonService) PersonHandler {
-	return &personHandler{
-		personService: personService,
-	}
-}
-
-func (h *personHandler) List(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
-}
-
-func (h *personHandler) CountPeople(c *fiber.Ctx) error {
-	userID, err := middleware.GetUserID(c)
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	count, err := h.personService.CountPeople(c.Context(), userID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to count people"})
-	}
-
-	return c.JSON(fiber.Map{"count": count})
-}
-
-func (h *personHandler) Get(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
-}
-
-func (h *personHandler) Update(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
-}
-
-func (h *personHandler) Delete(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
-}
-
-func (h *personHandler) Restore(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
-}
-
-func (h *personHandler) GetInteractions(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
-}
-
-func (h *personHandler) GetHealthScore(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
-}
-
-func (h *personHandler) UpdateReminder(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
-}
-
-func (h *personHandler) Search(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
-}
-
-func (h *personHandler) GetCategories(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
-}
+// Note: PersonHandler is implemented in person_handler.go. This file intentionally contains no PersonHandler definitions to avoid duplicates.
 
 // InteractionHandler stub implementation
 type interactionHandler struct {
@@ -85,39 +20,39 @@ func NewInteractionHandler(interactionService services.InteractionService) Inter
 }
 
 func (h *interactionHandler) List(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 101"})
 }
 
 func (h *interactionHandler) Create(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 102"})
 }
 
 func (h *interactionHandler) Get(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 103"})
 }
 
 func (h *interactionHandler) Update(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 104"})
 }
 
 func (h *interactionHandler) Delete(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 105"})
 }
 
 func (h *interactionHandler) GetRecent(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 106"})
 }
 
 func (h *interactionHandler) GetByDate(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 107"})
 }
 
 func (h *interactionHandler) GetEnergyDistribution(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 108"})
 }
 
 func (h *interactionHandler) BulkCreate(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 109"})
 }
 
 // ReflectionHandler stub implementation
@@ -133,39 +68,39 @@ func NewReflectionHandler(reflectionService services.ReflectionService) Reflecti
 }
 
 func (h *reflectionHandler) List(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 110"})
 }
 
 func (h *reflectionHandler) Create(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 111"})
 }
 
 func (h *reflectionHandler) Get(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 112"})
 }
 
 func (h *reflectionHandler) Update(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 113"})
 }
 
 func (h *reflectionHandler) Delete(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 114"})
 }
 
 func (h *reflectionHandler) GetToday(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 115"})
 }
 
 func (h *reflectionHandler) GetStreak(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 116"})
 }
 
 func (h *reflectionHandler) GetPrompts(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 117"})
 }
 
 func (h *reflectionHandler) GetMoodTrends(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 118"})
 }
 
 // NudgeHandler stub implementation
@@ -181,35 +116,35 @@ func NewNudgeHandler(nudgeService services.NudgeService) NudgeHandler {
 }
 
 func (h *nudgeHandler) List(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 119"})
 }
 
 func (h *nudgeHandler) Get(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 120"})
 }
 
 func (h *nudgeHandler) MarkSeen(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 121"})
 }
 
 func (h *nudgeHandler) MarkActedOn(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 122"})
 }
 
 func (h *nudgeHandler) Dismiss(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 123"})
 }
 
 func (h *nudgeHandler) GetActive(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 124"})
 }
 
 func (h *nudgeHandler) GetHistory(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 125"})
 }
 
 func (h *nudgeHandler) GenerateNudges(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 126"})
 }
 
 // GDPRHandler stub implementation
@@ -225,33 +160,33 @@ func NewGDPRHandler(gdprService services.GDPRService) GDPRHandler {
 }
 
 func (h *gdprHandler) GetConsents(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 127"})
 }
 
 func (h *gdprHandler) UpdateConsent(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 128"})
 }
 
 func (h *gdprHandler) RequestDataExport(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 129"})
 }
 
 func (h *gdprHandler) GetExportStatus(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 130"})
 }
 
 func (h *gdprHandler) DownloadExport(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 131"})
 }
 
 func (h *gdprHandler) DeleteAllData(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 132"})
 }
 
 func (h *gdprHandler) AnonymizeData(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 133"})
 }
 
 func (h *gdprHandler) GetAuditLog(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented"})
+	return c.JSON(fiber.Map{"message": "Not implemented 134"})
 }

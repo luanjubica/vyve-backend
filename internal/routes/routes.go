@@ -89,6 +89,7 @@ func setupProtectedRoutes(api fiber.Router, h *Handlers) {
 	{
 		// User profile endpoints
 		user.Get("", h.User.GetProfile)           // GET /users/me
+		user.Get("/", h.User.GetProfile)          // GET /users/me/
 		user.Put("", h.User.UpdateProfile)         // PUT /users/me
 		user.Delete("", h.User.DeleteAccount)      // DELETE /users/me
 		

@@ -39,12 +39,12 @@ type CreateReflectionRequest struct {
 
 func (s *reflectionService) Create(ctx context.Context, userID uuid.UUID, req CreateReflectionRequest) (*models.Reflection, error) {
 	// Stub implementation
-	return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented 200")
 }
 
 func (s *reflectionService) GetToday(ctx context.Context, userID uuid.UUID) (*models.Reflection, error) {
 	// Stub implementation
-	return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented 201")
 }
 
 // NudgeService handles nudge business logic
@@ -70,22 +70,22 @@ func NewNudgeService(nudgeRepo repository.NudgeRepository, notifications notific
 
 func (s *nudgeService) GenerateNudges(ctx context.Context, userID uuid.UUID) error {
 	// Stub implementation
-	return errors.New("not implemented")
+	return errors.New("not implemented 202")
 }
 
 func (s *nudgeService) GetActive(ctx context.Context, userID uuid.UUID) ([]*models.Nudge, error) {
 	// Stub implementation
-	return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented 203")
 }
 
 func (s *nudgeService) MarkSeen(ctx context.Context, userID, nudgeID uuid.UUID) error {
 	// Stub implementation
-	return errors.New("not implemented")
+	return errors.New("not implemented 204")
 }
 
 func (s *nudgeService) MarkActedOn(ctx context.Context, userID, nudgeID uuid.UUID) error {
 	// Stub implementation
-	return errors.New("not implemented")
+	return errors.New("not implemented 205")
 }
 
 // GDPRService handles GDPR compliance
@@ -111,22 +111,22 @@ func NewGDPRService(repos *repository.Repositories, encryptionConfig config.Encr
 
 func (s *gdprService) ExportUserData(ctx context.Context, userID uuid.UUID) (*models.DataExport, error) {
 	// Stub implementation
-	return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented 206")
 }
 
 func (s *gdprService) DeleteAllUserData(ctx context.Context, userID uuid.UUID) error {
 	// Stub implementation
-	return errors.New("not implemented")
+	return errors.New("not implemented 207")
 }
 
 func (s *gdprService) AnonymizeUserData(ctx context.Context, userID uuid.UUID) error {
 	// Stub implementation
-	return errors.New("not implemented")
+	return errors.New("not implemented 208")
 }
 
 func (s *gdprService) RecordConsent(ctx context.Context, userID uuid.UUID, consentType string, granted bool) error {
 	// Stub implementation
-	return errors.New("not implemented")
+	return errors.New("not implemented 209")
 }
 
 // Background worker functions

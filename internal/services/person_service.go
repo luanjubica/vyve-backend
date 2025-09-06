@@ -18,12 +18,12 @@ type PersonService interface {
 	Update(ctx context.Context, userID, personID uuid.UUID, updates map[string]interface{}) (*models.Person, error)
 	Delete(ctx context.Context, userID, personID uuid.UUID) error
 	Restore(ctx context.Context, userID, personID uuid.UUID) error
-	
+
 	// Extended operations
 	UpdateHealthScore(ctx context.Context, userID, personID uuid.UUID) error
 	GetCategories(ctx context.Context, userID uuid.UUID) ([]string, error)
 	Search(ctx context.Context, userID uuid.UUID, query string) ([]*models.Person, error)
-	
+
 	// People operations
 	CountPeople(ctx context.Context, userID uuid.UUID) (int64, error)
 }
@@ -41,14 +41,14 @@ func NewPersonService(personRepo repository.PersonRepository) PersonService {
 
 // CreatePersonRequest represents a request to create a person
 type CreatePersonRequest struct {
-	Name                string   `json:"name" validate:"required"`
-	CategoryID          *uuid.UUID `json:"category_id"`
-	Relationship        string   `json:"relationship"`
+	Name                  string     `json:"name" validate:"required"`
+	CategoryID            *uuid.UUID `json:"category_id"`
+	Relationship          string     `json:"relationship"`
 	CommunicationMethodID *uuid.UUID `json:"communication_method_id"`
 	RelationshipStatusID  *uuid.UUID `json:"relationship_status_id"`
 	IntentionID           *uuid.UUID `json:"intention_id"`
-	Context             []string `json:"context"`
-	Notes               string   `json:"notes"`
+	Context               []string   `json:"context"`
+	Notes                 string     `json:"notes"`
 }
 
 // ListOptions represents listing options
@@ -63,16 +63,16 @@ type ListOptions struct {
 // Create creates a new person
 func (s *personService) Create(ctx context.Context, userID uuid.UUID, req CreatePersonRequest) (*models.Person, error) {
 	person := &models.Person{
-		UserID:              userID,
-		Name:                req.Name,
-		Relationship:        req.Relationship,
-		CategoryID:          req.CategoryID,
+		UserID:                userID,
+		Name:                  req.Name,
+		Relationship:          req.Relationship,
+		CategoryID:            req.CategoryID,
 		CommunicationMethodID: req.CommunicationMethodID,
 		RelationshipStatusID:  req.RelationshipStatusID,
 		IntentionID:           req.IntentionID,
-		Context:             req.Context,
-		Notes:               req.Notes,
-		HealthScore:         50.0, // Default health score
+		Context:               req.Context,
+		Notes:                 req.Notes,
+		HealthScore:           50.0, // Default health score
 	}
 
 	if err := s.personRepo.Create(ctx, person); err != nil {
@@ -170,7 +170,7 @@ func (s *personService) Delete(ctx context.Context, userID, personID uuid.UUID) 
 // Restore restores a deleted person
 func (s *personService) Restore(ctx context.Context, userID, personID uuid.UUID) error {
 	// TODO: Implement restore logic
-	return errors.New("not implemented")
+	return errors.New("not implemented 401")
 }
 
 // CountPeople returns the total number of people for a user

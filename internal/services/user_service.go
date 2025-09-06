@@ -118,20 +118,6 @@ func (s *userService) GetStats(ctx context.Context, userID uuid.UUID) (map[strin
 	return s.userRepo.GetUserStats(ctx, userID)
 }
 
-// GetSettings gets user settings
-func (s *userService) GetSettings(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
-	user, err := s.userRepo.FindByID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Return settings from user model
-	if user.Settings == nil {
-		return make(map[string]interface{}), nil
-	}
-
-	return user.Settings, nil
-}
 
 // UpdateSettings updates user settings
 func (s *userService) UpdateSettings(ctx context.Context, userID uuid.UUID, settings map[string]interface{}) error {
@@ -165,25 +151,6 @@ func (s *userService) GetSettings(ctx context.Context, userID uuid.UUID) (map[st
 	}
 
 	return user.Settings, nil
-}
-
-// UpdateSettings updates user settings
-func (s *userService) UpdateSettings(ctx context.Context, userID uuid.UUID, settings map[string]interface{}) error {
-	user, err := s.userRepo.FindByID(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	// Merge settings
-	if user.Settings == nil {
-		user.Settings = make(models.JSONB)
-	}
-	
-	for key, value := range settings {
-		user.Settings[key] = value
-	}
-
-	return s.userRepo.Update(ctx, user)
 }
 
 // RegisterPushToken registers a push notification token
@@ -205,7 +172,7 @@ func (s *userService) DeactivatePushToken(ctx context.Context, token string) err
 
 // GetPushTokens gets user's push tokens
 func (s *userService) GetPushTokens(ctx context.Context, userID uuid.UUID) ([]*models.PushToken, error) {
-	return s.userRepo.GetPushTokens(ctx, userID)
+	return s.userRepo.GetUserPushTokens(ctx, userID) // Fixed method name
 }
 
 // GetOnboardingStatus gets the user's onboarding status

@@ -51,45 +51,45 @@ func (h *personHandler) CountPeople(c *fiber.Ctx) error {
 
 // Implement other required methods from PersonHandler interface with stubs
 func (h *personHandler) List(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented 135"})
 }
 
 func (h *personHandler) Create(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented 136"})
 }
 
 func (h *personHandler) Get(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented 137"})
 }
 
 func (h *personHandler) Update(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented 138"})
 }
 
 func (h *personHandler) Delete(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented 139"})
 }
 
 func (h *personHandler) Restore(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented 140"})
 }
 
 func (h *personHandler) GetInteractions(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented 141"})
 }
 
 func (h *personHandler) GetHealthScore(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented 142"})
 }
 
 func (h *personHandler) UpdateReminder(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented 143"})
 }
 
 func (h *personHandler) Search(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented 145"})
 }
 
 func (h *personHandler) GetCategories(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented 146"})
 }
