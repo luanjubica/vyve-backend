@@ -12,10 +12,10 @@ import (
 
 // OnboardingStatus represents the onboarding status of a user
 type OnboardingStatus struct {
-	Completed     bool      `json:"completed"`
+	Completed      bool      `json:"completed"`
 	CompletedSteps []string  `json:"completed_steps"`
-	CurrentStep   string    `json:"current_step,omitempty"`
-	LastUpdated   time.Time `json:"last_updated"`
+	CurrentStep    string    `json:"current_step,omitempty"`
+	LastUpdated    time.Time `json:"last_updated"`
 }
 
 // UserService handles user business logic
@@ -30,7 +30,7 @@ type UserService interface {
 	RegisterPushToken(ctx context.Context, userID uuid.UUID, token string, platform string) error
 	DeactivatePushToken(ctx context.Context, token string) error
 	GetPushTokens(ctx context.Context, userID uuid.UUID) ([]*models.PushToken, error)
-	
+
 	// Onboarding related methods
 	GetOnboardingStatus(ctx context.Context, userID uuid.UUID) (*OnboardingStatus, error)
 	UpdateOnboardingStatus(ctx context.Context, userID uuid.UUID, completed bool, currentStep string) (*OnboardingStatus, error)
@@ -118,7 +118,6 @@ func (s *userService) GetStats(ctx context.Context, userID uuid.UUID) (map[strin
 	return s.userRepo.GetUserStats(ctx, userID)
 }
 
-
 // UpdateSettings updates user settings
 func (s *userService) UpdateSettings(ctx context.Context, userID uuid.UUID, settings map[string]interface{}) error {
 	user, err := s.userRepo.FindByID(ctx, userID)
@@ -130,7 +129,7 @@ func (s *userService) UpdateSettings(ctx context.Context, userID uuid.UUID, sett
 	if user.Settings == nil {
 		user.Settings = make(models.JSONB)
 	}
-	
+
 	for key, value := range settings {
 		user.Settings[key] = value
 	}
@@ -182,25 +181,17 @@ func (s *userService) GetOnboardingStatus(ctx context.Context, userID uuid.UUID)
 		return nil, err
 	}
 
-	// Default onboarding status if not set
+	// Convert OnboardingSteps to []string
+	completedSteps := []string(user.OnboardingSteps)
+
+	// Default onboarding status
 	status := &OnboardingStatus{
-		Completed:     user.OnboardingCompleted,
-		CompletedSteps: []string{},
-		LastUpdated:   time.Now(),
+		Completed:      user.OnboardingCompleted,
+		CompletedSteps: completedSteps,
+		LastUpdated:    time.Now(),
 	}
 
-	// If we have onboarding steps in the database, load them
-	if user.OnboardingSteps != nil {
-		if steps, ok := user.OnboardingSteps.([]interface{}); ok {
-			for _, step := range steps {
-				if stepStr, ok := step.(string); ok {
-					status.CompletedSteps = append(status.CompletedSteps, stepStr)
-				}
-			}
-		}
-	}
-
-	// If onboarding is marked as completed but no steps are recorded, add a default step
+	// If onboarding is marked as completed but no steps are recorded, add default steps
 	if status.Completed && len(status.CompletedSteps) == 0 {
 		status.CompletedSteps = []string{"welcome", "people_added", "first_interaction"}
 	}
@@ -210,20 +201,21 @@ func (s *userService) GetOnboardingStatus(ctx context.Context, userID uuid.UUID)
 
 // UpdateOnboardingStatus updates the user's onboarding status
 func (s *userService) UpdateOnboardingStatus(ctx context.Context, userID uuid.UUID, completed bool, currentStep string) (*OnboardingStatus, error) {
-	updates := map[string]interface{}{
-		"onboarding_completed": completed,
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
 	}
+
+	// Update completion status
+	user.OnboardingCompleted = completed
 
 	// If we're completing a step, add it to the completed steps
 	if currentStep != "" {
-		currentStatus, err := s.GetOnboardingStatus(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
+		completedSteps := []string(user.OnboardingSteps)
 
 		// Check if step is already completed
 		stepExists := false
-		for _, step := range currentStatus.CompletedSteps {
+		for _, step := range completedSteps {
 			if step == currentStep {
 				stepExists = true
 				break
@@ -232,15 +224,13 @@ func (s *userService) UpdateOnboardingStatus(ctx context.Context, userID uuid.UU
 
 		// Add the step if it doesn't exist
 		if !stepExists {
-			currentStatus.CompletedSteps = append(currentStatus.CompletedSteps, currentStep)
+			completedSteps = append(completedSteps, currentStep)
+			user.OnboardingSteps = models.OnboardingSteps(completedSteps)
 		}
-
-		updates["onboarding_steps"] = currentStatus.CompletedSteps
 	}
 
 	// Update the user
-	_, err := s.Update(ctx, userID, updates)
-	if err != nil {
+	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
 
