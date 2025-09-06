@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/vyve/vyve-backend/internal/middleware"
 	"github.com/vyve/vyve-backend/internal/repository"
 	"github.com/vyve/vyve-backend/internal/services"
 )
@@ -18,7 +19,7 @@ type AuthHandler interface {
 	ForgotPassword(c *fiber.Ctx) error
 	ResetPassword(c *fiber.Ctx) error
 	VerifyEmail(c *fiber.Ctx) error
-	
+
 	// OAuth handlers
 	GoogleAuth(c *fiber.Ctx) error
 	GoogleCallback(c *fiber.Ctx) error
@@ -26,7 +27,7 @@ type AuthHandler interface {
 	LinkedInCallback(c *fiber.Ctx) error
 	AppleAuth(c *fiber.Ctx) error
 	AppleCallback(c *fiber.Ctx) error
-	
+
 	// Token validation (used by middleware)
 	ValidateToken(ctx context.Context, token string) (*services.Claims, error)
 }
@@ -121,10 +122,12 @@ func (h *authHandler) RefreshToken(c *fiber.Ctx) error {
 // Logout handles user logout
 func (h *authHandler) Logout(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		// If no valid token, still return success (already logged out)
+		return c.JSON(fiber.Map{
+			"success": true,
+			"message": "Logged out successfully",
 		})
 	}
 
@@ -134,12 +137,14 @@ func (h *authHandler) Logout(c *fiber.Ctx) error {
 	}
 	c.BodyParser(&req)
 
-	// Parse user ID
-	// TODO: Convert string to UUID
-	_ = userID
-	_ = req.RefreshToken
+	// Logout user
+	if err := h.authService.Logout(c.Context(), userID, req.RefreshToken); err != nil {
+		// Log error but don't fail logout
+		fmt.Printf("Logout error: %v\n", err)
+	}
 
 	return c.JSON(fiber.Map{
+		"success": true,
 		"message": "Logged out successfully",
 	})
 }

@@ -54,8 +54,9 @@ func AuthMiddleware(validateToken TokenValidator) fiber.Handler {
 			})
 		}
 
-		// Set user context
-		c.Locals("user_id", claims.UserID)
+		// Set user context with consistent keys
+		c.Locals("userID", claims.UserID.String()) // Store as string for some handlers
+		c.Locals("user_id", claims.UserID)         // Store as UUID for middleware.GetUserID
 		c.Locals("claims", claims)
 
 		return c.Next()
