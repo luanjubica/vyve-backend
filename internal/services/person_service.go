@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/vyve/vyve-backend/internal/models"
@@ -175,6 +176,8 @@ func (s *personService) Restore(ctx context.Context, userID, personID uuid.UUID)
 
 // CountPeople returns the total number of people for a user
 func (s *personService) CountPeople(ctx context.Context, userID uuid.UUID) (int64, error) {
+	log.Printf("🎯 PersonService.CountPeople called with userID: %s", userID)
+
 	people, err := s.personRepo.FindByUserID(ctx, userID)
 	if err != nil {
 		return 0, err

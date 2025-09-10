@@ -132,3 +132,12 @@ type GDPRHandler interface {
 	AnonymizeData(c *fiber.Ctx) error
 	GetAuditLog(c *fiber.Ctx) error
 }
+
+// DictionaryHandler defines dictionary endpoints
+type DictionaryHandler interface {
+	Categories(c *fiber.Ctx) error
+	CommunicationMethods(c *fiber.Ctx) error
+	RelationshipStatuses(c *fiber.Ctx) error
+	Intentions(c *fiber.Ctx) error
+	EnergyPatterns(c *fiber.Ctx) error
+}

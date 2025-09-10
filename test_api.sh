@@ -66,10 +66,10 @@ echo ""
 
 # 5. Get People Count
 echo "📍 5. Testing Get People Count..."
-#PEOPLE_COUNT_RESPONSE=$(curl -s -X GET "$BASE_URL/people/count" \
- # -H "Authorization: Bearer $TOKEN")
+PEOPLE_COUNT_RESPONSE=$(curl -s -X GET "$BASE_URL/people/count" \
+  -H "Authorization: Bearer $TOKEN")
 
-#echo "People Count Response: $PEOPLE_COUNT_RESPONSE"
+echo "People Count Response: $PEOPLE_COUNT_RESPONSE"
 echo ""
 
 # 6. List People

@@ -154,6 +154,7 @@ func main() {
 	reflectionService := services.NewReflectionService(repos.Reflection)
 	nudgeService := services.NewNudgeService(repos.Nudge, notificationService)
 	gdprService := services.NewGDPRService(repos, cfg.Encryption)
+	dictionaryService := services.NewDictionaryService(db)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
@@ -164,6 +165,7 @@ func main() {
 	reflectionHandler := handlers.NewReflectionHandler(reflectionService)
 	nudgeHandler := handlers.NewNudgeHandler(nudgeService)
 	gdprHandler := handlers.NewGDPRHandler(gdprService)
+	dictionaryHandler := handlers.NewDictionaryHandler(dictionaryService)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -195,6 +197,7 @@ func main() {
 		GDPR:        gdprHandler,
 		Realtime:    hub,
 		Onboarding:  onboardingHandler,
+		Dictionary:  dictionaryHandler,
 	}, authService, cfg)
 
 	// Start background workers

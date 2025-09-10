@@ -159,11 +159,20 @@ func (h *userHandler) UpdateSettings(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	// Parse settings directly from request body
+	// Parse settings from request body
 	var settings map[string]interface{}
 	if err := c.BodyParser(&settings); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
+
+	// If client sends a wrapped payload like {"success": true, "data": {...}}, unwrap it
+	if raw, ok := settings["data"]; ok {
+		if inner, ok := raw.(map[string]interface{}); ok {
+			settings = inner
+		}
+	}
+	// Drop any wrapper flags that might have been passed back from previous responses
+	delete(settings, "success")
 
 	if err := h.userService.UpdateSettings(c.Context(), userID, settings); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update settings"})
