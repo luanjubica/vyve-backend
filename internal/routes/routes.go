@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"log"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/monitor"
 
@@ -22,6 +24,7 @@ type Handlers struct {
 	GDPR        handlers.GDPRHandler
 	Realtime    *realtime.Hub
 	Onboarding  handlers.OnboardingHandler
+	Dictionary  handlers.DictionaryHandler
 }
 
 // Setup sets up all routes
@@ -84,19 +87,23 @@ func setupPublicRoutes(api fiber.Router, h *Handlers) {
 
 // setupProtectedRoutes sets up protected API routes
 func setupProtectedRoutes(api fiber.Router, h *Handlers) {
-	// User profile - FIXED: Removed duplicate routes
+	// User profile
 	user := api.Group("/users/me")
 	{
-		// Core user profile endpoints
+		// User profile endpoints
 		user.Get("", h.User.GetProfile)       // GET /users/me
+		user.Get("/", h.User.GetProfile)      // GET /users/me/
 		user.Put("", h.User.UpdateProfile)    // PUT /users/me
 		user.Delete("", h.User.DeleteAccount) // DELETE /users/me
 
 		// User settings endpoints
-		user.Get("/settings", h.User.GetSettings)    // GET /users/me/settings
-		user.Put("/settings", h.User.UpdateSettings) // PUT /users/me/settings
+		settings := user.Group("/settings")
+		{
+			settings.Get("", h.User.GetSettings)    // GET /users/me/settings
+			settings.Put("", h.User.UpdateSettings) // PUT /users/me/settings
+		}
 
-		// User stats and other endpoints
+		// User stats endpoint
 		user.Get("/stats", h.User.GetStats) // GET /users/me/stats
 
 		// Authentication related endpoints
@@ -104,32 +111,47 @@ func setupProtectedRoutes(api fiber.Router, h *Handlers) {
 		user.Post("/upload-avatar", h.User.UploadAvatar)     // POST /users/me/upload-avatar
 
 		// Onboarding
-		user.Get("/onboarding", h.Onboarding.GetOnboardingStatus)          // GET /users/me/onboarding
-		user.Post("/onboarding/complete", h.Onboarding.CompleteOnboarding) // POST /users/me/onboarding/complete
+		onboarding := user.Group("/onboarding")
+		{
+			onboarding.Get("", h.Onboarding.GetOnboardingStatus)          // GET /users/me/onboarding
+			// Accept both POST /users/me/onboarding and /users/me/onboarding/complete
+			onboarding.Post("", h.Onboarding.CompleteOnboarding)          // POST /users/me/onboarding
+			onboarding.Post("/complete", h.Onboarding.CompleteOnboarding) // POST /users/me/onboarding/complete
+		}
 
 		// OAuth account linking
-		user.Post("/oauth/link/:provider", h.User.LinkOAuthAccount)       // POST /users/me/oauth/link/:provider
-		user.Delete("/oauth/unlink/:provider", h.User.UnlinkOAuthAccount) // DELETE /users/me/oauth/unlink/:provider
+		oauth := user.Group("/oauth")
+		{
+			oauth.Post("/link/:provider", h.User.LinkOAuthAccount)       // POST /users/me/oauth/link/:provider
+			oauth.Delete("/unlink/:provider", h.User.UnlinkOAuthAccount) // DELETE /users/me/oauth/unlink/:provider
+		}
 
 		// Push notifications
 		user.Post("/push-token", h.User.RegisterPushToken)            // POST /users/me/push-token
 		user.Delete("/push-token/:token", h.User.DeactivatePushToken) // DELETE /users/me/push-token/:token
 	}
 
-	// People (relationships) - FIXED: Proper ordering to avoid conflicts
+	// People (relationships) - FIXED: Specific routes BEFORE parameterized routes
 	people := api.Group("/people")
 	{
-		// Special endpoints MUST come before /:id routes
-		people.Get("/count", h.Person.CountPeople)        // GET /people/count
-		people.Get("/categories", h.Person.GetCategories) // GET /people/categories
-		people.Post("/search", h.Person.Search)           // POST /people/search
-
-		// General CRUD operations
 		people.Get("", h.Person.List)    // GET /people
 		people.Post("", h.Person.Create) // POST /people
 
-		// Individual person operations (MUST come after special endpoints)
-		people.Get("/:id", h.Person.Get)                          // GET /people/:id
+		// SPECIFIC ROUTES FIRST (before /:id routes)
+		// Add debugging to see which route matches
+		people.Get("/count", func(c *fiber.Ctx) error {
+			log.Printf("🎯 ROUTE MATCHED: /people/count")
+			return h.Person.CountPeople(c)
+		})
+
+		people.Post("/search", h.Person.Search)           // POST /people/search
+		people.Get("/categories", h.Person.GetCategories) // GET /people/categories
+
+		// PARAMETERIZED ROUTES LAST (after specific routes)
+		people.Get("/:id", func(c *fiber.Ctx) error {
+			log.Printf("🎯 ROUTE MATCHED: /people/:id with id='%s'", c.Params("id"))
+			return h.Person.Get(c)
+		}) // GET /people/:id
 		people.Put("/:id", h.Person.Update)                       // PUT /people/:id
 		people.Delete("/:id", h.Person.Delete)                    // DELETE /people/:id
 		people.Post("/:id/restore", h.Person.Restore)             // POST /people/:id/restore
@@ -141,87 +163,105 @@ func setupProtectedRoutes(api fiber.Router, h *Handlers) {
 	// Interactions (vyves)
 	interactions := api.Group("/interactions")
 	{
-		interactions.Get("", h.Interaction.List)                                      // GET /interactions
-		interactions.Post("", h.Interaction.Create)                                   // POST /interactions
-		interactions.Get("/recent", h.Interaction.GetRecent)                          // GET /interactions/recent
-		interactions.Get("/by-date", h.Interaction.GetByDate)                         // GET /interactions/by-date
-		interactions.Get("/energy-distribution", h.Interaction.GetEnergyDistribution) // GET /interactions/energy-distribution
-		interactions.Post("/bulk", h.Interaction.BulkCreate)                          // POST /interactions/bulk
+		interactions.Get("/", h.Interaction.List)
+		interactions.Post("/", h.Interaction.Create)
 
-		// Individual interaction operations
-		interactions.Get("/:id", h.Interaction.Get)       // GET /interactions/:id
-		interactions.Put("/:id", h.Interaction.Update)    // PUT /interactions/:id
-		interactions.Delete("/:id", h.Interaction.Delete) // DELETE /interactions/:id
+		// SPECIFIC ROUTES FIRST
+		interactions.Get("/recent", h.Interaction.GetRecent)
+		interactions.Get("/by-date", h.Interaction.GetByDate)
+		interactions.Get("/energy-distribution", h.Interaction.GetEnergyDistribution)
+		interactions.Post("/bulk", h.Interaction.BulkCreate)
+
+		// PARAMETERIZED ROUTES LAST
+		interactions.Get("/:id", h.Interaction.Get)
+		interactions.Put("/:id", h.Interaction.Update)
+		interactions.Delete("/:id", h.Interaction.Delete)
 	}
 
 	// Reflections
 	reflections := api.Group("/reflections")
 	{
-		reflections.Get("", h.Reflection.List)                // GET /reflections
-		reflections.Post("", h.Reflection.Create)             // POST /reflections
-		reflections.Get("/today", h.Reflection.GetToday)      // GET /reflections/today
-		reflections.Get("/streak", h.Reflection.GetStreak)    // GET /reflections/streak
-		reflections.Get("/prompts", h.Reflection.GetPrompts)  // GET /reflections/prompts
-		reflections.Get("/moods", h.Reflection.GetMoodTrends) // GET /reflections/moods
+		reflections.Get("/", h.Reflection.List)
+		reflections.Post("/", h.Reflection.Create)
 
-		// Individual reflection operations
-		reflections.Get("/:id", h.Reflection.Get)       // GET /reflections/:id
-		reflections.Put("/:id", h.Reflection.Update)    // PUT /reflections/:id
-		reflections.Delete("/:id", h.Reflection.Delete) // DELETE /reflections/:id
+		// SPECIFIC ROUTES FIRST
+		reflections.Get("/today", h.Reflection.GetToday)
+		reflections.Get("/streak", h.Reflection.GetStreak)
+		reflections.Get("/prompts", h.Reflection.GetPrompts)
+		reflections.Get("/moods", h.Reflection.GetMoodTrends)
+
+		// PARAMETERIZED ROUTES LAST
+		reflections.Get("/:id", h.Reflection.Get)
+		reflections.Put("/:id", h.Reflection.Update)
+		reflections.Delete("/:id", h.Reflection.Delete)
 	}
 
 	// Nudges (AI insights)
 	nudges := api.Group("/nudges")
 	{
-		nudges.Get("", h.Nudge.List)                     // GET /nudges
-		nudges.Get("/active", h.Nudge.GetActive)         // GET /nudges/active
-		nudges.Get("/history", h.Nudge.GetHistory)       // GET /nudges/history
-		nudges.Post("/generate", h.Nudge.GenerateNudges) // POST /nudges/generate
+		nudges.Get("/", h.Nudge.List)
 
-		// Individual nudge operations
-		nudges.Get("/:id", h.Nudge.Get)              // GET /nudges/:id
-		nudges.Post("/:id/seen", h.Nudge.MarkSeen)   // POST /nudges/:id/seen
-		nudges.Post("/:id/act", h.Nudge.MarkActedOn) // POST /nudges/:id/act
-		nudges.Post("/:id/dismiss", h.Nudge.Dismiss) // POST /nudges/:id/dismiss
+		// SPECIFIC ROUTES FIRST
+		nudges.Get("/active", h.Nudge.GetActive)
+		nudges.Get("/history", h.Nudge.GetHistory)
+		nudges.Post("/generate", h.Nudge.GenerateNudges)
+
+		// PARAMETERIZED ROUTES LAST
+		nudges.Get("/:id", h.Nudge.Get)
+		nudges.Post("/:id/seen", h.Nudge.MarkSeen)
+		nudges.Post("/:id/act", h.Nudge.MarkActedOn)
+		nudges.Delete("/:id", h.Nudge.Dismiss)
+	}
+
+	// Dictionaries (read-only)
+	dictionaries := api.Group("/dictionaries")
+	{
+		dictionaries.Get("/categories", h.Dictionary.Categories)
+		dictionaries.Get("/communication-methods", h.Dictionary.CommunicationMethods)
+		dictionaries.Get("/relationship-statuses", h.Dictionary.RelationshipStatuses)
+		dictionaries.Get("/intentions", h.Dictionary.Intentions)
+		dictionaries.Get("/energy-patterns", h.Dictionary.EnergyPatterns)
 	}
 
 	// Analytics & Insights
 	analytics := api.Group("/analytics")
 	{
-		analytics.Get("/dashboard", h.User.GetDashboard)        // GET /analytics/dashboard
-		analytics.Get("/metrics", h.User.GetMetrics)            // GET /analytics/metrics
-		analytics.Get("/trends", h.User.GetTrends)              // GET /analytics/trends
-		analytics.Post("/event", h.User.TrackEvent)             // POST /analytics/event
-		analytics.Get("/events", h.User.GetEvents)              // GET /analytics/events
-		analytics.Get("/daily-metrics", h.User.GetDailyMetrics) // GET /analytics/daily-metrics
+		analytics.Get("/dashboard", h.User.GetDashboard)
+		analytics.Get("/metrics", h.User.GetMetrics)
+		analytics.Get("/trends", h.User.GetTrends)
+		analytics.Post("/event", h.User.TrackEvent)
+		analytics.Get("/events", h.User.GetEvents)
+		analytics.Get("/daily-metrics", h.User.GetDailyMetrics)
 	}
 
 	// GDPR & Privacy
 	gdpr := api.Group("/gdpr")
 	{
-		gdpr.Get("/consent", h.GDPR.GetConsents)                // GET /gdpr/consent
-		gdpr.Post("/consent", h.GDPR.UpdateConsent)             // POST /gdpr/consent
-		gdpr.Post("/export", h.GDPR.RequestDataExport)          // POST /gdpr/export
-		gdpr.Get("/export/:id", h.GDPR.GetExportStatus)         // GET /gdpr/export/:id
-		gdpr.Get("/export/:id/download", h.GDPR.DownloadExport) // GET /gdpr/export/:id/download
-		gdpr.Delete("/data", h.GDPR.DeleteAllData)              // DELETE /gdpr/data
-		gdpr.Post("/anonymize", h.GDPR.AnonymizeData)           // POST /gdpr/anonymize
-		gdpr.Get("/audit-log", h.GDPR.GetAuditLog)              // GET /gdpr/audit-log
+		gdpr.Get("/consent", h.GDPR.GetConsents)
+		gdpr.Post("/consent", h.GDPR.UpdateConsent)
+		gdpr.Post("/export", h.GDPR.RequestDataExport)
+		gdpr.Delete("/data", h.GDPR.DeleteAllData)
+		gdpr.Post("/anonymize", h.GDPR.AnonymizeData)
+		gdpr.Get("/audit-log", h.GDPR.GetAuditLog)
+
+		// PARAMETERIZED ROUTES LAST
+		gdpr.Get("/export/:id", h.GDPR.GetExportStatus)
+		gdpr.Get("/export/:id/download", h.GDPR.DownloadExport)
 	}
 
 	// Search
 	search := api.Group("/search")
 	{
-		search.Get("", h.User.GlobalSearch)                     // GET /search
-		search.Get("/suggestions", h.User.GetSearchSuggestions) // GET /search/suggestions
+		search.Get("/", h.User.GlobalSearch)
+		search.Get("/suggestions", h.User.GetSearchSuggestions)
 	}
 
 	// Notifications
 	notifications := api.Group("/notifications")
 	{
-		notifications.Get("/preferences", h.User.GetNotificationPreferences)    // GET /notifications/preferences
-		notifications.Put("/preferences", h.User.UpdateNotificationPreferences) // PUT /notifications/preferences
-		notifications.Post("/test", h.User.SendTestNotification)                // POST /notifications/test
+		notifications.Get("/preferences", h.User.GetNotificationPreferences)
+		notifications.Put("/preferences", h.User.UpdateNotificationPreferences)
+		notifications.Post("/test", h.User.SendTestNotification)
 	}
 }
 

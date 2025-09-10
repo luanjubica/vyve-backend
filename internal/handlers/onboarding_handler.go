@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 
+	"github.com/vyve/vyve-backend/internal/middleware"
 	"github.com/vyve/vyve-backend/internal/services"
 )
 
@@ -28,24 +28,16 @@ func NewOnboardingHandler(userService services.UserService) OnboardingHandler {
 
 // GetOnboardingStatus handles GET /users/me/onboarding
 func (h *onboardingHandler) GetOnboardingStatus(c *fiber.Ctx) error {
-	// Get user ID from context (set by auth middleware)
-	userID, ok := c.Locals("userID").(string)
-	if !ok {
+	// Use the middleware helper function to get user ID correctly
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
 	}
 
-	// Parse user ID
-	userUUID, err := uuid.Parse(userID)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid user ID",
-		})
-	}
-
 	// Get onboarding status
-	status, err := h.userService.GetOnboardingStatus(c.Context(), userUUID)
+	status, err := h.userService.GetOnboardingStatus(c.Context(), userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get onboarding status",
@@ -58,24 +50,16 @@ func (h *onboardingHandler) GetOnboardingStatus(c *fiber.Ctx) error {
 // CompleteOnboardingRequest represents the request body for completing onboarding
 type CompleteOnboardingRequest struct {
 	Completed bool   `json:"completed"`
-	Step     string `json:"step,omitempty"`
+	Step      string `json:"step,omitempty"`
 }
 
 // CompleteOnboarding handles POST /users/me/onboarding/complete
 func (h *onboardingHandler) CompleteOnboarding(c *fiber.Ctx) error {
-	// Get user ID from context (set by auth middleware)
-	userID, ok := c.Locals("userID").(string)
-	if !ok {
+	// Use the middleware helper function to get user ID correctly
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
-		})
-	}
-
-	// Parse user ID
-	userUUID, err := uuid.Parse(userID)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid user ID",
 		})
 	}
 
@@ -88,7 +72,7 @@ func (h *onboardingHandler) CompleteOnboarding(c *fiber.Ctx) error {
 	}
 
 	// Update onboarding status
-	status, err := h.userService.UpdateOnboardingStatus(c.Context(), userUUID, req.Completed, req.Step)
+	status, err := h.userService.UpdateOnboardingStatus(c.Context(), userID, req.Completed, req.Step)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update onboarding status",

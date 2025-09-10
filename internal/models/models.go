@@ -3,6 +3,8 @@ package models
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"     // Add this
+	"strings" // Add this
 	"time"
 
 	"github.com/google/uuid"
@@ -74,7 +76,16 @@ func (s StringArray) Value() (driver.Value, error) {
 	if len(s) == 0 {
 		return "{}", nil
 	}
-	return s, nil
+
+	// Convert to PostgreSQL array format: {item1,item2,item3}
+	var items []string
+	for _, item := range s {
+		// Escape quotes and backslashes
+		escaped := strings.ReplaceAll(item, "\\", "\\\\")
+		escaped = strings.ReplaceAll(escaped, "\"", "\\\"")
+		items = append(items, "\""+escaped+"\"")
+	}
+	return "{" + strings.Join(items, ",") + "}", nil
 }
 
 func (s *StringArray) Scan(value interface{}) error {
@@ -82,10 +93,77 @@ func (s *StringArray) Scan(value interface{}) error {
 		*s = []string{}
 		return nil
 	}
-	// Handle PostgreSQL array format
-	// This is a simplified version - you might need a more robust parser
-	*s = value.([]string)
-	return nil
+
+	switch v := value.(type) {
+	case string:
+		// Parse PostgreSQL array format: {item1,item2,item3}
+		*s = parsePostgreSQLArray(v)
+		return nil
+	case []byte:
+		// Handle byte array
+		*s = parsePostgreSQLArray(string(v))
+		return nil
+	case []string:
+		// Direct assignment if already parsed
+		*s = v
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %T into StringArray", value)
+	}
+}
+
+// parsePostgreSQLArray parses PostgreSQL array format: {item1,item2,item3}
+func parsePostgreSQLArray(s string) []string {
+	s = strings.TrimSpace(s)
+
+	// Handle empty array
+	if s == "{}" || s == "" {
+		return []string{}
+	}
+
+	// Remove outer braces
+	if strings.HasPrefix(s, "{") && strings.HasSuffix(s, "}") {
+		s = s[1 : len(s)-1]
+	}
+
+	if s == "" {
+		return []string{}
+	}
+
+	var result []string
+	var current strings.Builder
+	var inQuotes bool
+	var escaped bool
+
+	for i, char := range s {
+		switch {
+		case escaped:
+			current.WriteRune(char)
+			escaped = false
+		case char == '\\':
+			escaped = true
+		case char == '"':
+			inQuotes = !inQuotes
+		case char == ',' && !inQuotes:
+			item := strings.TrimSpace(current.String())
+			if item != "" {
+				result = append(result, item)
+			}
+			current.Reset()
+		default:
+			current.WriteRune(char)
+		}
+
+		// Handle last item
+		if i == len(s)-1 {
+			item := strings.TrimSpace(current.String())
+			if item != "" {
+				result = append(result, item)
+			}
+		}
+	}
+
+	return result
 }
 
 // JSONB is a custom type for PostgreSQL JSONB fields

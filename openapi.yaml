@@ -21,6 +21,7 @@ tags:
   - name: Analytics
   - name: Admin
   - name: System
+  - name: Dictionaries
 
 security:
   - bearerAuth: []
@@ -77,7 +78,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/User' }
-    patch:
+    put:
       tags: [Users]
       summary: Update current user profile
       requestBody:
@@ -92,7 +93,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/User' }
 
-  /users/me/avatar:
+  /users/me/upload-avatar:
     post:
       tags: [Users]
       summary: Upload avatar
@@ -121,7 +122,7 @@ paths:
           content:
             application/json:
               schema: { type: object, additionalProperties: true }
-    patch:
+    put:
       tags: [Users]
       summary: Update settings
       requestBody:
@@ -135,6 +136,37 @@ paths:
           content:
             application/json:
               schema: { type: object, additionalProperties: true }
+
+  /users/me/stats:
+    get:
+      tags: [Users]
+      summary: Get user stats
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /users/me/change-password:
+    post:
+      tags: [Users]
+      summary: Change password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                old_password: { type: string }
+                new_password: { type: string }
+              required: [old_password, new_password]
+      responses:
+        '501':
+          description: Not implemented
 
   /people:
     get:
@@ -174,14 +206,18 @@ paths:
               schema: { $ref: '#/components/schemas/Person' }
 
   /people/search:
-    get:
+    post:
       tags: [People, Search]
       summary: Search people by name
-      parameters:
-        - name: q
-          in: query
-          required: true
-          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query: { type: string }
+              required: [query]
       responses:
         '200':
           description: Search results
@@ -190,6 +226,71 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Person' }
+
+  /dictionaries/categories:
+    get:
+      tags: [Dictionaries]
+      summary: List categories for current user
+      responses:
+        '200':
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Category' }
+
+  /dictionaries/communication-methods:
+    get:
+      tags: [Dictionaries]
+      summary: List communication methods
+      responses:
+        '200':
+          description: Communication methods
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CommunicationMethod' }
+
+  /dictionaries/relationship-statuses:
+    get:
+      tags: [Dictionaries]
+      summary: List relationship statuses
+      responses:
+        '200':
+          description: Relationship statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RelationshipStatus' }
+
+  /dictionaries/intentions:
+    get:
+      tags: [Dictionaries]
+      summary: List intentions
+      responses:
+        '200':
+          description: Intentions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Intention' }
+
+  /dictionaries/energy-patterns:
+    get:
+      tags: [Dictionaries]
+      summary: List energy patterns
+      responses:
+        '200':
+          description: Energy patterns
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/EnergyPattern' }
 
   /people/categories:
     get:
@@ -217,7 +318,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Person' }
         '404': { $ref: '#/components/responses/NotFound' }
-    patch:
+    put:
       tags: [People]
       summary: Update person
       parameters:
@@ -290,7 +391,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Interaction' }
         '404': { $ref: '#/components/responses/NotFound' }
-    patch:
+    put:
       tags: [Interactions]
       summary: Update interaction
       parameters: [ { $ref: '#/components/parameters/interactionId' } ]
@@ -413,7 +514,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Reflection' }
         '404': { $ref: '#/components/responses/NotFound' }
-    patch:
+    put:
       tags: [Reflections]
       summary: Update reflection
       parameters: [ { $ref: '#/components/parameters/reflectionId' } ]
@@ -902,6 +1003,15 @@ components:
         created_at: { $ref: '#/components/schemas/Timestamp' }
         updated_at: { $ref: '#/components/schemas/Timestamp' }
 
+    UpdateUserRequest:
+      type: object
+      properties:
+        display_name: { type: string }
+        bio: { type: string }
+        timezone: { type: string }
+        locale: { type: string }
+        avatar_url: { type: string }
+
     CreatePersonRequest:
       type: object
       properties:
@@ -941,6 +1051,42 @@ components:
         next_reminder_at: { $ref: '#/components/schemas/Timestamp' }
         created_at: { $ref: '#/components/schemas/Timestamp' }
         updated_at: { $ref: '#/components/schemas/Timestamp' }
+
+    Category:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        user_id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        color: { type: string }
+
+    CommunicationMethod:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        icon: { type: string }
+
+    RelationshipStatus:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        color: { type: string }
+
+    Intention:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        color: { type: string }
+
+    EnergyPattern:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        color: { type: string }
 
     CreateInteractionRequest:
       type: object

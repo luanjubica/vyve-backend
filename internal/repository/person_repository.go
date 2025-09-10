@@ -4,6 +4,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"log"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -69,33 +70,64 @@ func (r *personRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.
 	return &person, nil
 }
 
-// FindByUserID finds all people for a user
 func (r *personRepository) FindByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Person, error) {
+	log.Printf("🎯 PersonRepository.FindByUserID called with userID: %s", userID)
+
+	log.Printf("🔍 Step 1: Declaring people slice...")
 	var people []*models.Person
-	err := r.db.WithContext(ctx).
-		Where("user_id = ?", userID).
-		Order("name ASC").
-		Find(&people).Error
-	return people, err
+	log.Printf("✅ Step 1: People slice declared")
+
+	log.Printf("🔍 Step 2: Getting database connection with context...")
+	//dbWithCtx := r.db.WithContext(ctx)
+	log.Printf("✅ Step 2: Database connection with context obtained")
+
+	log.Printf("🔍 Step 3: Building WHERE clause...")
+	//queryWithWhere := dbWithCtx.Where("user_id = ?", userID)
+	log.Printf("✅ Step 3: WHERE clause built")
+
+	log.Printf("🔍 Step 4: Adding ORDER BY clause...")
+	//queryWithOrder := queryWithWhere.Order("name ASC")
+	log.Printf("✅ Step 4: ORDER BY clause added")
+
+	log.Printf("🔍 Step 5: About to execute Find()...")
+	log.Printf("🚨 THIS IS THE CRITICAL MOMENT - if logs stop here, Find() is hanging")
+
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT 
+			*
+		FROM people 
+		WHERE user_id = $1 AND (deleted_at IS NULL OR deleted_at = '0001-01-01 00:00:00+00')
+		ORDER BY name ASC
+	`, userID).Scan(&people).Error
+
+	log.Printf("✅ Step 5: Find() completed! Found %d people", len(people))
+
+	if err != nil {
+		log.Printf("❌ Find() returned error: %v", err)
+		return nil, err
+	}
+
+	log.Printf("✅ FindByUserID completed successfully, returning %d people", len(people))
+	return people, nil
 }
 
 // List lists people with pagination
 func (r *personRepository) List(ctx context.Context, opts FilterOptions) ([]*models.Person, *PaginationResult, error) {
 	query := r.db.WithContext(ctx).Model(&models.Person{})
-	
+
 	// Apply filters
 	if opts.UserID != uuid.Nil {
 		query = query.Where("user_id = ?", opts.UserID)
 	}
-	
+
 	if opts.Category != "" {
 		query = query.Where("category_id = ?", opts.Category)
 	}
-	
+
 	if opts.Search != "" {
 		query = query.Where("name ILIKE ?", "%"+opts.Search+"%")
 	}
-	
+
 	// Apply ordering
 	if opts.OrderBy != "" {
 		if opts.Desc {
@@ -106,13 +138,13 @@ func (r *personRepository) List(ctx context.Context, opts FilterOptions) ([]*mod
 	} else {
 		query = query.Order("name ASC")
 	}
-	
+
 	var people []*models.Person
 	result, err := Paginate(ctx, query, opts.Page, opts.Limit, &people)
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	return people, result, nil
 }
 

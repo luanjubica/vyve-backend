@@ -125,6 +125,19 @@ func (s *userService) UpdateSettings(ctx context.Context, userID uuid.UUID, sett
 		return err
 	}
 
+	// Normalize payload: unwrap nested "data" wrappers and drop flags like "success"
+	// Unwrap recursively in case the client sent nested { data: { data: {...} } }
+	for {
+		if raw, ok := settings["data"]; ok {
+			if inner, ok := raw.(map[string]interface{}); ok {
+				settings = inner
+				continue
+			}
+		}
+		break
+	}
+	delete(settings, "success")
+
 	// Merge settings
 	if user.Settings == nil {
 		user.Settings = make(models.JSONB)
