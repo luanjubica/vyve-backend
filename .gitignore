@@ -79,6 +79,7 @@ ENV/
 
 # Local development
 .env.local
+.env
 .env.*.local
 
 # Local development
