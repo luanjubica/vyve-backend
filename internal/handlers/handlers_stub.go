@@ -5,55 +5,9 @@ import (
 	"github.com/vyve/vyve-backend/internal/services"
 )
 
-// Note: PersonHandler is implemented in person_handler.go. This file intentionally contains no PersonHandler definitions to avoid duplicates.
-
-// InteractionHandler stub implementation
-type interactionHandler struct {
-	interactionService services.InteractionService
-}
-
-// NewInteractionHandler creates a new interaction handler
-func NewInteractionHandler(interactionService services.InteractionService) InteractionHandler {
-	return &interactionHandler{
-		interactionService: interactionService,
-	}
-}
-
-func (h *interactionHandler) List(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 101"})
-}
-
-func (h *interactionHandler) Create(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 102"})
-}
-
-func (h *interactionHandler) Get(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 103"})
-}
-
-func (h *interactionHandler) Update(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 104"})
-}
-
-func (h *interactionHandler) Delete(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 105"})
-}
-
-func (h *interactionHandler) GetRecent(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 106"})
-}
-
-func (h *interactionHandler) GetByDate(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 107"})
-}
-
-func (h *interactionHandler) GetEnergyDistribution(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 108"})
-}
-
-func (h *interactionHandler) BulkCreate(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 109"})
-}
+// Note: PersonHandler is implemented in person_handler.go
+// Note: InteractionHandler is implemented in interaction_handler.go
+// This file contains stub implementations for remaining handlers
 
 // ReflectionHandler stub implementation
 type reflectionHandler struct {

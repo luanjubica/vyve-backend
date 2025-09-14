@@ -147,7 +147,7 @@ func main() {
 	repos := repository.NewRepositories(db)
 
 	// Initialize services
-	authService := services.NewAuthService(repos.User, redisClient, cfg.JWT)
+	authService := services.NewAuthService(repos.User, redisClient, cfg.JWT, cfg)
 	userService := services.NewUserService(repos.User, storageService)
 	personService := services.NewPersonService(repos.Person)
 	interactionService := services.NewInteractionService(repos.Interaction, repos.Person, analyticsService)

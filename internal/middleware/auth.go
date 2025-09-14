@@ -29,12 +29,10 @@ type TokenValidator func(ctx context.Context, token string) (*services.Claims, e
 // AuthMiddleware validates JWT tokens
 func AuthMiddleware(validateToken TokenValidator) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		log.Printf("[AUTH] Processing request: %s %s", c.Method(), c.Path())
 
 		// Get authorization header
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
-			log.Printf("[AUTH] Missing authorization header")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Missing authorization header",
 			})
@@ -43,19 +41,16 @@ func AuthMiddleware(validateToken TokenValidator) fiber.Handler {
 		// Extract token
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			log.Printf("[AUTH] Invalid authorization header format: %s", authHeader)
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Invalid authorization header format",
 			})
 		}
 
 		token := parts[1]
-		log.Printf("[AUTH] Token extracted, length: %d", len(token))
 
 		// Validate token
 		claims, err := validateToken(c.Context(), token)
 		if err != nil {
-			log.Printf("[AUTH] Token validation failed: %v", err)
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error":   "Invalid or expired token",
 				"details": err.Error(),
@@ -67,8 +62,6 @@ func AuthMiddleware(validateToken TokenValidator) fiber.Handler {
 		// Set user context
 		c.Locals("user_id", claims.UserID)
 		c.Locals("claims", claims)
-
-		log.Printf("[AUTH] User context set: user_id=%s", claims.UserID)
 
 		return c.Next()
 	}
@@ -134,19 +127,15 @@ func RequireEmailVerified() fiber.Handler {
 
 // GetUserID gets user ID from context
 func GetUserID(c *fiber.Ctx) (uuid.UUID, error) {
-	log.Printf("[MIDDLEWARE] GetUserID called")
 
 	// Try to get user_id from locals
 	userIDValue := c.Locals("user_id")
-	log.Printf("[MIDDLEWARE] user_id from locals: %v (type: %T)", userIDValue, userIDValue)
 
 	userID, ok := userIDValue.(uuid.UUID)
 	if !ok {
-		log.Printf("[MIDDLEWARE] Failed to cast user_id to uuid.UUID")
 		return uuid.Nil, fiber.NewError(fiber.StatusUnauthorized, "User not authenticated")
 	}
 
-	log.Printf("[MIDDLEWARE] Successfully got userID: %s", userID)
 	return userID, nil
 }
 

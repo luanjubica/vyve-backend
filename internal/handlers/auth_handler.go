@@ -220,8 +220,16 @@ func (h *authHandler) VerifyEmail(c *fiber.Ctx) error {
 
 // GoogleAuth initiates Google OAuth flow
 func (h *authHandler) GoogleAuth(c *fiber.Ctx) error {
-	// TODO: Implement Google OAuth flow initiation
-	return c.Redirect("https://accounts.google.com/oauth/authorize?...")
+    // Create state value (could be stored/validated if needed)
+    state := c.Query("state")
+    if state == "" {
+        state = fmt.Sprintf("%s", c.Locals("requestid"))
+    }
+    url := h.authService.GetGoogleAuthURL(state)
+    if url == "" {
+        return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "Google OAuth not configured"})
+    }
+    return c.Redirect(url)
 }
 
 // GoogleCallback handles Google OAuth callback

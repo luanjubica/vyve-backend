@@ -5,11 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	oauth2 "golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	googleoauth "google.golang.org/api/oauth2/v2"
+	"google.golang.org/api/option"
 
 	"github.com/vyve/vyve-backend/internal/config"
 	"github.com/vyve/vyve-backend/internal/models"
@@ -31,6 +36,7 @@ type AuthService interface {
 	ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
 
 	// OAuth methods
+	GetGoogleAuthURL(state string) string
 	HandleGoogleAuth(ctx context.Context, code string) (*AuthResponse, error)
 	HandleLinkedInAuth(ctx context.Context, code string) (*AuthResponse, error)
 	HandleAppleAuth(ctx context.Context, code string) (*AuthResponse, error)
@@ -52,14 +58,16 @@ type authService struct {
 	userRepo repository.UserRepository
 	cache    cache.Cache
 	jwtCfg   config.JWTConfig
+	cfg      *config.Config
 }
 
 // NewAuthService creates a new auth service
-func NewAuthService(userRepo repository.UserRepository, cache cache.Cache, jwtCfg config.JWTConfig) AuthService {
+func NewAuthService(userRepo repository.UserRepository, cache cache.Cache, jwtCfg config.JWTConfig, cfg *config.Config) AuthService {
 	return &authService{
 		userRepo: userRepo,
 		cache:    cache,
 		jwtCfg:   jwtCfg,
+		cfg:      cfg,
 	}
 }
 
@@ -467,14 +475,154 @@ func (s *authService) ChangePassword(ctx context.Context, userID uuid.UUID, oldP
 	return nil
 }
 
+func (s *authService) GetGoogleAuthURL(state string) string {
+	if s.cfg == nil {
+		return ""
+	}
+	conf := &oauth2.Config{
+		ClientID:     s.cfg.OAuth.Google.ClientID,
+		ClientSecret: s.cfg.OAuth.Google.ClientSecret,
+		RedirectURL:  s.cfg.OAuth.Google.RedirectURL,
+		Scopes: []string{
+			googleoauth.UserinfoEmailScope,
+			googleoauth.UserinfoProfileScope,
+			"openid",
+		},
+		Endpoint: google.Endpoint,
+	}
+	return conf.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+}
+
 func (s *authService) HandleGoogleAuth(ctx context.Context, code string) (*AuthResponse, error) {
-    // TODO: Implement Google OAuth
-    return nil, errors.New("not implemented 210")
+	if s.cfg == nil {
+		return nil, errors.New("oauth config not initialized")
+	}
+
+	if s.cfg.OAuth.Google.ClientID == "" || s.cfg.OAuth.Google.ClientSecret == "" || s.cfg.OAuth.Google.RedirectURL == "" {
+		return nil, errors.New("google oauth is not configured")
+	}
+
+	// Build OAuth2 config
+	conf := &oauth2.Config{
+		ClientID:     s.cfg.OAuth.Google.ClientID,
+		ClientSecret: s.cfg.OAuth.Google.ClientSecret,
+		RedirectURL:  s.cfg.OAuth.Google.RedirectURL,
+		Scopes: []string{
+			googleoauth.UserinfoEmailScope,
+			googleoauth.UserinfoProfileScope,
+			"openid",
+		},
+		Endpoint: google.Endpoint,
+	}
+
+	// Exchange code for token
+	tok, err := conf.Exchange(ctx, code)
+	if err != nil {
+		return nil, fmt.Errorf("failed to exchange code: %w", err)
+	}
+
+	// Fetch user info
+	httpClient := conf.Client(ctx, tok)
+	oauth2Service, err := googleoauth.NewService(ctx, option.WithHTTPClient(httpClient))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create google oauth2 service: %w", err)
+	}
+	userInfo, err := oauth2Service.Userinfo.V2.Me.Get().Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+
+	// userInfo contains Id, Email, VerifiedEmail, Name, GivenName, FamilyName, Picture
+	provider := "google"
+	providerID := userInfo.Id
+
+	// Try to find by provider
+	var user *models.User
+	user, err = s.userRepo.FindByAuthProvider(ctx, provider, providerID)
+	if err != nil {
+		if !repository.IsNotFound(err) {
+			return nil, err
+		}
+	}
+
+	if user == nil {
+		// Try find by email
+		if userInfo.Email != "" {
+			u, err := s.userRepo.FindByEmail(ctx, userInfo.Email)
+			if err == nil {
+				user = u
+			} else if !repository.IsNotFound(err) {
+				return nil, err
+			}
+		}
+	}
+
+	if user == nil {
+		// Create new user
+		username := userInfo.Email
+		if idx := strings.Index(username, "@"); idx > 0 {
+			username = username[:idx]
+		}
+		displayName := userInfo.Name
+		if displayName == "" {
+			displayName = username
+		}
+		user = &models.User{
+			Username:      username,
+			Email:         userInfo.Email,
+			EmailVerified: userInfo.VerifiedEmail != nil && *userInfo.VerifiedEmail,
+			DisplayName:   displayName,
+			AvatarURL:     userInfo.Picture,
+			Timezone:      "UTC",
+			Locale:        "en",
+		}
+		if err := s.userRepo.Create(ctx, user); err != nil {
+			return nil, err
+		}
+	}
+
+	// Link provider (idempotent create)
+	var expiresAt *time.Time
+	if tok.Expiry.After(time.Now()) {
+		t := tok.Expiry
+		expiresAt = &t
+	}
+	ap := &models.AuthProvider{
+		UserID:       user.ID,
+		Provider:     provider,
+		ProviderID:   providerID,
+		AccessToken:  tok.AccessToken,
+		RefreshToken: tok.RefreshToken,
+		ExpiresAt:    expiresAt,
+		RawData:      models.JSONB{"provider": provider},
+	}
+	// Best-effort: try to create, ignore if exists
+	if err := s.userRepo.LinkAuthProvider(ctx, ap); err != nil {
+		// continue on unique violation or similar; repository layer not exposing, so just log
+		log.Printf("LinkAuthProvider error (continuing): %v", err)
+	}
+
+	// Update last login
+	_ = s.userRepo.UpdateLastLogin(ctx, user.ID)
+
+	// Generate tokens
+	tokenPair, err := s.GenerateTokenPair(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AuthResponse{
+		User:         s.mapUserToDTO(user),
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		ExpiresIn:    tokenPair.ExpiresIn,
+		TokenType:    "Bearer",
+	}, nil
 }
 
 func (s *authService) HandleLinkedInAuth(ctx context.Context, code string) (*AuthResponse, error) {
-    // TODO: Implement LinkedIn OAuth
-    return nil, errors.New("not implemented 211")
+	// TODO: Implement LinkedIn OAuth
+	return nil, errors.New("not implemented 211")
 }
 
 func (s *authService) HandleAppleAuth(ctx context.Context, code string) (*AuthResponse, error) {
@@ -509,3 +657,5 @@ func (s *authService) EndSession(ctx context.Context, sessionID string) error {
     // TODO: Implement
     return errors.New("not implemented 216")
 }
+
+// (duplicate removed)
