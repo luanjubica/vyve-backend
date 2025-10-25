@@ -20,6 +20,7 @@ type Repositories struct {
 	Consent     ConsentRepository
 	AuditLog    AuditLogRepository
 	DataExport  DataExportRepository
+	Analysis    AnalysisRepository
 }
 
 // NewRepositories creates new repository instances
@@ -34,6 +35,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Consent:     NewConsentRepository(db),
 		AuditLog:    NewAuditLogRepository(db),
 		DataExport:  NewDataExportRepository(db),
+		Analysis:    NewAnalysisRepository(db),
 	}
 }
 

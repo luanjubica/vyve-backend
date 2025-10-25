@@ -54,11 +54,14 @@ type CreatePersonRequest struct {
 
 // ListOptions represents listing options
 type ListOptions struct {
-	Page     int    `json:"page"`
-	Limit    int    `json:"limit"`
-	Category string `json:"category"`
-	Search   string `json:"search"`
-	OrderBy  string `json:"order_by"`
+	Page     int         `json:"page"`
+	Limit    int         `json:"limit"`
+	Category string      `json:"category"`
+	Search   string      `json:"search"`
+	OrderBy  string      `json:"order_by"`
+	Source   string      `json:"source"`    // For nudges: 'ai' or 'system'
+	Status   string      `json:"status"`    // For nudges: status filter
+	PersonID *uuid.UUID  `json:"person_id"` // For nudges: filter by person
 }
 
 // Create creates a new person

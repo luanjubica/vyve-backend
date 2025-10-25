@@ -25,6 +25,7 @@ type Handlers struct {
 	Realtime    *realtime.Hub
 	Onboarding  handlers.OnboardingHandler
 	Dictionary  handlers.DictionaryHandler
+	Analysis    handlers.AnalysisHandler
 }
 
 // Setup sets up all routes
@@ -158,6 +159,12 @@ func setupProtectedRoutes(api fiber.Router, h *Handlers) {
 		people.Get("/:id/interactions", h.Person.GetInteractions) // GET /people/:id/interactions
 		people.Get("/:id/health", h.Person.GetHealthScore)        // GET /people/:id/health
 		people.Put("/:id/reminder", h.Person.UpdateReminder)      // PUT /people/:id/reminder
+		
+		// AI Analysis endpoints
+		people.Get("/:id/analysis", h.Analysis.GetPersonAnalysis)              // GET /people/:id/analysis
+		people.Post("/:id/analysis/refresh", h.Analysis.RefreshPersonAnalysis) // POST /people/:id/analysis/refresh
+		people.Get("/:id/analysis/history", h.Analysis.GetAnalysisHistory)     // GET /people/:id/analysis/history
+		people.Get("/:id/recommendations", h.Analysis.GetPersonRecommendations) // GET /people/:id/recommendations
 	}
 
 	// Interactions (vyves)
@@ -223,6 +230,13 @@ func setupProtectedRoutes(api fiber.Router, h *Handlers) {
 		dictionaries.Get("/energy-patterns", h.Dictionary.EnergyPatterns)
 	}
 
+	// AI Recommendations
+	recommendations := api.Group("/recommendations")
+	{
+		recommendations.Get("/", h.Analysis.GetActiveRecommendations)                // GET /recommendations
+		recommendations.Post("/:id/status", h.Analysis.UpdateRecommendationStatus)   // POST /recommendations/:id/status
+	}
+	
 	// Analytics & Insights
 	analytics := api.Group("/analytics")
 	{
@@ -232,6 +246,11 @@ func setupProtectedRoutes(api fiber.Router, h *Handlers) {
 		analytics.Post("/event", h.User.TrackEvent)
 		analytics.Get("/events", h.User.GetEvents)
 		analytics.Get("/daily-metrics", h.User.GetDailyMetrics)
+		
+		// AI Analysis endpoints
+		analytics.Get("/insights", h.Analysis.GetOverallInsights)      // GET /analytics/insights
+		analytics.Post("/batch-analyze", h.Analysis.BatchAnalyze)      // POST /analytics/batch-analyze
+		analytics.Get("/jobs/:id", h.Analysis.GetJobStatus)            // GET /analytics/jobs/:id
 	}
 
 	// GDPR & Privacy

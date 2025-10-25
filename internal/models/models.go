@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"     // Add this
+	"math"
 	"strings" // Add this
 	"time"
 
@@ -274,7 +275,7 @@ type Person struct {
 	CategoryRef            *Category            `gorm:"foreignKey:CategoryID" json:"-"`
 	Relationship           string               `json:"relationship"`
 	AvatarURL              string               `json:"avatar_url"`
-	HealthScore            float64              `gorm:"default:50" json:"health_score"`
+	HealthScore            float64              `gorm:"default:50" json:"-"`
 	EnergyPatternID        *uuid.UUID           `gorm:"index" json:"energy_pattern_id,omitempty"`
 	EnergyPatternRef       *EnergyPattern       `gorm:"foreignKey:EnergyPatternID" json:"-"`
 	LastInteractionAt      *time.Time           `json:"last_interaction_at"`
@@ -294,6 +295,18 @@ type Person struct {
 	// Relations
 	User         User          `gorm:"foreignKey:UserID" json:"-"`
 	Interactions []Interaction `json:"-"`
+}
+
+// MarshalJSON customizes JSON marshaling to round health_score to integer
+func (p Person) MarshalJSON() ([]byte, error) {
+	type Alias Person
+	return json.Marshal(&struct {
+		*Alias
+		HealthScore int `json:"health_score"`
+	}{
+		Alias:       (*Alias)(&p),
+		HealthScore: int(math.Round(p.HealthScore)), // Round to nearest integer
+	})
 }
 
 // Interaction represents a "vyve" - an interaction with a person
@@ -334,26 +347,50 @@ type Reflection struct {
 	User User `gorm:"foreignKey:UserID" json:"-"`
 }
 
-// Nudge represents an AI-generated insight or reminder
+// Nudge represents both AI-generated and rule-based recommendations/reminders
 type Nudge struct {
 	Base
 	UserID     uuid.UUID  `gorm:"not null;index" json:"user_id"`
 	PersonID   *uuid.UUID `gorm:"index" json:"person_id,omitempty"`
-	Type       string     `gorm:"not null" json:"type"` // pattern, reconnect, boundary, energy, achievement
+	AnalysisID *uuid.UUID `gorm:"index" json:"analysis_id,omitempty"` // Link to AI analysis if AI-generated
+	
+	// Core fields
+	Type       string     `gorm:"not null" json:"type"` // reach_out, schedule_call, set_boundary, celebrate, check_in, pattern, energy, achievement
 	Title      string     `gorm:"not null" json:"title"`
-	Message    string     `gorm:"not null" json:"message"`
+	Message    string     `gorm:"not null;type:text" json:"message"` // Main message/description
 	Priority   string     `gorm:"default:'medium'" json:"priority"` // high, medium, low
-	Action     string     `json:"action"`
-	ActionData JSONB      `gorm:"type:jsonb" json:"action_data"`
-	Seen       bool       `gorm:"default:false" json:"seen"`
-	ActedOn    bool       `gorm:"default:false" json:"acted_on"`
-	SeenAt     *time.Time `json:"seen_at"`
-	ActedAt    *time.Time `json:"acted_at"`
-	ExpiresAt  *time.Time `json:"expires_at"`
+	
+	// AI-specific fields (optional for rule-based nudges)
+	Source              string      `gorm:"default:'system'" json:"source"` // 'ai' or 'system'
+	Reasoning           string      `gorm:"type:text" json:"reasoning,omitempty"` // Why this recommendation (AI)
+	SuggestedActions    StringArray `gorm:"type:text[]" json:"suggested_actions,omitempty"` // Specific action steps
+	ConversationStarters StringArray `gorm:"type:text[]" json:"conversation_starters,omitempty"` // Opening lines
+	Timing              string      `json:"timing,omitempty"` // now, today, this_week, this_month
+	EstimatedImpact     string      `json:"estimated_impact,omitempty"` // high, medium, low
+	
+	// Legacy/system fields
+	Action     string     `json:"action,omitempty"` // Legacy action field
+	ActionData JSONB      `gorm:"type:jsonb" json:"action_data,omitempty"` // Additional action data
+	
+	// Status tracking
+	Status    string     `gorm:"default:'pending'" json:"status"` // pending, seen, accepted, completed, dismissed
+	Seen      bool       `gorm:"default:false" json:"seen"` // Legacy field, use status instead
+	ActedOn   bool       `gorm:"default:false" json:"acted_on"` // Legacy field, use status instead
+	SeenAt    *time.Time `json:"seen_at,omitempty"`
+	ActedAt   *time.Time `json:"acted_at,omitempty"`
+	AcceptedAt *time.Time `json:"accepted_at,omitempty"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	DismissedAt *time.Time `json:"dismissed_at,omitempty"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	
+	// AI metadata (for cost tracking)
+	Provider string `json:"provider,omitempty"` // openai, anthropic (if AI-generated)
+	Model    string `json:"model,omitempty"` // Model used (if AI-generated)
 
 	// Relations
-	User   User    `gorm:"foreignKey:UserID" json:"-"`
-	Person *Person `gorm:"foreignKey:PersonID" json:"-"`
+	User     User                  `gorm:"foreignKey:UserID" json:"-"`
+	Person   *Person               `gorm:"foreignKey:PersonID" json:"-"`
+	Analysis *RelationshipAnalysis `gorm:"foreignKey:AnalysisID" json:"-"`
 }
 
 // Event represents an analytics event
@@ -466,6 +503,78 @@ type DataExport struct {
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
 	Error       string     `json:"error,omitempty"`
 
+	// Relations
+	User User `gorm:"foreignKey:UserID" json:"-"`
+}
+
+// RelationshipAnalysis represents AI-generated analysis of a relationship
+type RelationshipAnalysis struct {
+	Base
+	UserID   uuid.UUID `gorm:"not null;index:idx_user_person" json:"user_id"`
+	PersonID uuid.UUID `gorm:"not null;index:idx_user_person" json:"person_id"`
+	
+	// Scores (0-100)
+	ConnectionStrength  float64 `json:"connection_strength"`
+	EngagementQuality   float64 `json:"engagement_quality"`
+	CommunicationBalance float64 `json:"communication_balance"`
+	EnergyAlignment     float64 `json:"energy_alignment"`
+	RelationshipHealth  float64 `json:"relationship_health"`
+	OverallScore        float64 `json:"overall_score"`
+	
+	// Analysis content
+	Summary           string      `gorm:"type:text" json:"summary"`
+	KeyInsights       StringArray `gorm:"type:text[]" json:"key_insights"`
+	Patterns          StringArray `gorm:"type:text[]" json:"patterns"`
+	Strengths         StringArray `gorm:"type:text[]" json:"strengths"`
+	Concerns          StringArray `gorm:"type:text[]" json:"concerns"`
+	TrendDirection    string      `json:"trend_direction"` // improving, stable, declining
+	
+	// Metadata
+	Provider          string    `gorm:"not null" json:"provider"` // openai, anthropic
+	Model             string    `json:"model"`
+	TokensUsed        int       `json:"tokens_used"`
+	ProcessingTimeMs  int       `json:"processing_time_ms"`
+	Version           int       `gorm:"default:1" json:"version"`
+	AnalyzedAt        time.Time `gorm:"not null;default:now()" json:"analyzed_at"`
+	InteractionsCount int       `json:"interactions_count"` // Number of interactions analyzed
+	
+	// Relations
+	User              User                  `gorm:"foreignKey:UserID" json:"-"`
+	Person            Person                `gorm:"foreignKey:PersonID" json:"-"`
+	Nudges            []Nudge               `gorm:"foreignKey:AnalysisID" json:"nudges,omitempty"`
+}
+
+// AIAnalysisJob represents a background job for AI analysis
+type AIAnalysisJob struct {
+	Base
+	UserID uuid.UUID `gorm:"not null;index" json:"user_id"`
+	
+	// Job details
+	JobType     string      `gorm:"not null" json:"job_type"` // single_person, batch_analysis, recommendations
+	Status      string      `gorm:"not null;default:'pending'" json:"status"` // pending, processing, completed, failed
+	Priority    int         `gorm:"default:5" json:"priority"` // 1-10, higher = more priority
+	
+	// Target
+	PersonIDs   StringArray `gorm:"type:text[]" json:"person_ids,omitempty"`
+	
+	// Progress tracking
+	TotalItems     int     `gorm:"default:0" json:"total_items"`
+	ProcessedItems int     `gorm:"default:0" json:"processed_items"`
+	FailedItems    int     `gorm:"default:0" json:"failed_items"`
+	Progress       float64 `gorm:"default:0" json:"progress"` // 0-100
+	
+	// Results
+	ResultData JSONB  `gorm:"type:jsonb" json:"result_data,omitempty"`
+	Error      string `gorm:"type:text" json:"error,omitempty"`
+	
+	// Cost tracking
+	TotalTokensUsed int     `json:"total_tokens_used"`
+	EstimatedCost   float64 `json:"estimated_cost"`
+	
+	// Timing
+	StartedAt   *time.Time `json:"started_at,omitempty"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	
 	// Relations
 	User User `gorm:"foreignKey:UserID" json:"-"`
 }

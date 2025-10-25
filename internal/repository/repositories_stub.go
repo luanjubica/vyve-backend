@@ -107,8 +107,13 @@ func (r *nudgeRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.N
 }
 
 func (r *nudgeRepository) GetActive(ctx context.Context, userID uuid.UUID) ([]*models.Nudge, error) {
-	// Stub implementation
-	return nil, errors.New("not implemented 302")
+	var nudges []*models.Nudge
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND status IN (?, ?) AND (expires_at IS NULL OR expires_at > ?)", 
+			userID, "pending", "seen", time.Now()).
+		Order("priority DESC, created_at DESC").
+		Find(&nudges).Error
+	return nudges, err
 }
 
 func (r *nudgeRepository) MarkSeen(ctx context.Context, id uuid.UUID) error {
@@ -118,6 +123,7 @@ func (r *nudgeRepository) MarkSeen(ctx context.Context, id uuid.UUID) error {
 		Updates(map[string]interface{}{
 			"seen":    true,
 			"seen_at": time.Now(),
+			"status":  "seen",
 		}).Error
 }
 
@@ -126,14 +132,48 @@ func (r *nudgeRepository) MarkActedOn(ctx context.Context, id uuid.UUID) error {
 		Model(&models.Nudge{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
-			"acted_on": true,
-			"acted_at": time.Now(),
+			"acted_on":     true,
+			"acted_at":     time.Now(),
+			"status":       "completed",
+			"completed_at": time.Now(),
 		}).Error
 }
 
 func (r *nudgeRepository) List(ctx context.Context, opts FilterOptions) ([]*models.Nudge, *PaginationResult, error) {
-	// Stub implementation
-	return nil, nil, errors.New("not implemented 303")
+	var nudges []*models.Nudge
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&models.Nudge{})
+
+	// Apply filters using the helper function
+	query = ApplyFilters(query, opts)
+
+	// Count total
+	if err := query.Count(&total).Error; err != nil {
+		return nil, nil, err
+	}
+
+	// Apply pagination
+	if opts.Limit > 0 {
+		offset := (opts.Page - 1) * opts.Limit
+		query = query.Offset(offset).Limit(opts.Limit)
+	}
+
+	// Execute query
+	if err := query.Find(&nudges).Error; err != nil {
+		return nil, nil, err
+	}
+
+	pagination := &PaginationResult{
+		Total:       total,
+		Page:        opts.Page,
+		Limit:       opts.Limit,
+		TotalPages:  int((total + int64(opts.Limit) - 1) / int64(opts.Limit)),
+		HasNext:     opts.Page < int((total+int64(opts.Limit)-1)/int64(opts.Limit)),
+		HasPrevious: opts.Page > 1,
+	}
+
+	return nudges, pagination, nil
 }
 
 // EventRepository defines event data access interface

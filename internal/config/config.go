@@ -26,6 +26,7 @@ type Config struct {
 	RateLimit  RateLimitConfig
 	Logging    LoggingConfig
 	Features   FeaturesConfig
+	AI         AIConfig
 }
 
 type ServerConfig struct {
@@ -145,6 +146,19 @@ type FeaturesConfig struct {
 	SocialAuth         bool
 	DataExport         bool
 	EUDataResidency    bool
+}
+
+type AIConfig struct {
+	Provider         string
+	OpenAIKey        string
+	OpenAIModel      string
+	AnthropicKey     string
+	AnthropicModel   string
+	MaxTokens        int
+	Temperature      float64
+	CacheEnabled     bool
+	CacheTTL         time.Duration
+	RateLimitPerUser int
 }
 
 // Load loads configuration from environment variables
@@ -270,6 +284,19 @@ func Load() *Config {
 			DataExport:        getEnvAsBool("FEATURE_DATA_EXPORT", true),
 			EUDataResidency:   getEnvAsBool("EU_DATA_RESIDENCY", false),
 		},
+		
+		AI: AIConfig{
+			Provider:         getEnv("AI_PROVIDER", "openai"),
+			OpenAIKey:        getEnv("OPENAI_API_KEY", ""),
+			OpenAIModel:      getEnv("OPENAI_MODEL", "gpt-4o"),
+			AnthropicKey:     getEnv("ANTHROPIC_API_KEY", ""),
+			AnthropicModel:   getEnv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"),
+			MaxTokens:        getEnvAsInt("AI_MAX_TOKENS", 2000),
+			Temperature:      getEnvAsFloat("AI_TEMPERATURE", 0.7),
+			CacheEnabled:     getEnvAsBool("AI_CACHE_ENABLED", true),
+			CacheTTL:         getDuration("AI_CACHE_TTL", 24*time.Hour),
+			RateLimitPerUser: getEnvAsInt("AI_RATE_LIMIT_PER_USER", 10),
+		},
 	}
 }
 
@@ -367,6 +394,15 @@ func getDuration(key string, defaultValue time.Duration) time.Duration {
 func getEnvAsSlice(key string, defaultValue []string) []string {
 	if value := os.Getenv(key); value != "" {
 		return strings.Split(value, ",")
+	}
+	return defaultValue
+}
+
+func getEnvAsFloat(key string, defaultValue float64) float64 {
+	if value := os.Getenv(key); value != "" {
+		if floatVal, err := strconv.ParseFloat(value, 64); err == nil {
+			return floatVal
+		}
 	}
 	return defaultValue
 }

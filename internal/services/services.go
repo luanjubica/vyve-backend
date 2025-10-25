@@ -49,44 +49,24 @@ func (s *reflectionService) GetToday(ctx context.Context, userID uuid.UUID) (*mo
 
 // NudgeService handles nudge business logic
 type NudgeService interface {
-	GenerateNudges(ctx context.Context, userID uuid.UUID) error
+	// List and retrieve
+	List(ctx context.Context, userID uuid.UUID, opts ListOptions) ([]*models.Nudge, *repository.PaginationResult, error)
+	GetByID(ctx context.Context, userID, nudgeID uuid.UUID) (*models.Nudge, error)
 	GetActive(ctx context.Context, userID uuid.UUID) ([]*models.Nudge, error)
+	GetHistory(ctx context.Context, userID uuid.UUID, limit int) ([]*models.Nudge, error)
+	
+	// Actions
 	MarkSeen(ctx context.Context, userID, nudgeID uuid.UUID) error
 	MarkActedOn(ctx context.Context, userID, nudgeID uuid.UUID) error
+	Dismiss(ctx context.Context, userID, nudgeID uuid.UUID) error
+	
+	// Generation
+	GenerateNudges(ctx context.Context, userID uuid.UUID) error
+	GenerateForPerson(ctx context.Context, userID, personID uuid.UUID) ([]*models.Nudge, error)
+	GenerateSystemNudges(ctx context.Context, userID uuid.UUID) ([]*models.Nudge, error)
 }
 
-type nudgeService struct {
-	nudgeRepo      repository.NudgeRepository
-	notifications  notifications.NotificationService
-}
-
-// NewNudgeService creates a new nudge service
-func NewNudgeService(nudgeRepo repository.NudgeRepository, notifications notifications.NotificationService) NudgeService {
-	return &nudgeService{
-		nudgeRepo:     nudgeRepo,
-		notifications: notifications,
-	}
-}
-
-func (s *nudgeService) GenerateNudges(ctx context.Context, userID uuid.UUID) error {
-	// Stub implementation
-	return errors.New("not implemented 202")
-}
-
-func (s *nudgeService) GetActive(ctx context.Context, userID uuid.UUID) ([]*models.Nudge, error) {
-	// Stub implementation
-	return nil, errors.New("not implemented 203")
-}
-
-func (s *nudgeService) MarkSeen(ctx context.Context, userID, nudgeID uuid.UUID) error {
-	// Stub implementation
-	return errors.New("not implemented 204")
-}
-
-func (s *nudgeService) MarkActedOn(ctx context.Context, userID, nudgeID uuid.UUID) error {
-	// Stub implementation
-	return errors.New("not implemented 205")
-}
+// Note: NudgeService implementation is in nudge_service.go
 
 // GDPRService handles GDPR compliance
 type GDPRService interface {

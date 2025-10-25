@@ -26,6 +26,7 @@ import (
 	"github.com/vyve/vyve-backend/internal/repository"
 	"github.com/vyve/vyve-backend/internal/routes"
 	"github.com/vyve/vyve-backend/internal/services"
+	"github.com/vyve/vyve-backend/pkg/ai"
 	"github.com/vyve/vyve-backend/pkg/analytics"
 	"github.com/vyve/vyve-backend/pkg/cache"
 	"github.com/vyve/vyve-backend/pkg/notifications"
@@ -99,6 +100,8 @@ func migrateDatabase(db *gorm.DB) error {
 		&models.Event{},
 		&models.DailyMetric{},
 		&models.PushToken{},
+		&models.RelationshipAnalysis{},
+		&models.AIAnalysisJob{},
 	)
 }
 
@@ -142,6 +145,7 @@ func main() {
 	storageService := initializeStorage(cfg)
 	analyticsService := initializeAnalytics(cfg)
 	notificationService := initializeNotifications(cfg)
+	aiService := initializeAIService(cfg)
 
 	// Initialize repositories
 	repos := repository.NewRepositories(db)
@@ -155,6 +159,7 @@ func main() {
 	nudgeService := services.NewNudgeService(repos.Nudge, notificationService)
 	gdprService := services.NewGDPRService(repos, cfg.Encryption)
 	dictionaryService := services.NewDictionaryService(db)
+	analysisService := services.NewAnalysisService(aiService, repos.Analysis, repos.Person, repos.Interaction)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
@@ -166,6 +171,7 @@ func main() {
 	nudgeHandler := handlers.NewNudgeHandler(nudgeService)
 	gdprHandler := handlers.NewGDPRHandler(gdprService)
 	dictionaryHandler := handlers.NewDictionaryHandler(dictionaryService)
+	analysisHandler := handlers.NewAnalysisHandler(analysisService)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -198,6 +204,7 @@ func main() {
 		Realtime:    hub,
 		Onboarding:  onboardingHandler,
 		Dictionary:  dictionaryHandler,
+		Analysis:    analysisHandler,
 	}, authService, cfg)
 
 	// Start background workers
@@ -314,6 +321,36 @@ func initializeNotifications(cfg *config.Config) notifications.NotificationServi
 		return fcmService
 	}
 	return notifications.NewMockNotificationService()
+}
+
+func initializeAIService(cfg *config.Config) *ai.Service {
+	// Only initialize if AI features are enabled and API keys are configured
+	if !cfg.Features.AIInsights {
+		log.Println("AI insights feature is disabled")
+		return nil
+	}
+	
+	aiConfig := ai.Config{
+		Provider:         cfg.AI.Provider,
+		OpenAIKey:        cfg.AI.OpenAIKey,
+		OpenAIModel:      cfg.AI.OpenAIModel,
+		AnthropicKey:     cfg.AI.AnthropicKey,
+		AnthropicModel:   cfg.AI.AnthropicModel,
+		MaxTokens:        cfg.AI.MaxTokens,
+		Temperature:      cfg.AI.Temperature,
+		CacheEnabled:     cfg.AI.CacheEnabled,
+		CacheTTL:         cfg.AI.CacheTTL,
+		RateLimitPerUser: cfg.AI.RateLimitPerUser,
+	}
+	
+	aiService, err := ai.NewService(aiConfig)
+	if err != nil {
+		log.Printf("Failed to initialize AI service: %v", err)
+		return nil
+	}
+	
+	log.Printf("AI service initialized with provider: %s", cfg.AI.Provider)
+	return aiService
 }
 
 func startBackgroundWorkers(

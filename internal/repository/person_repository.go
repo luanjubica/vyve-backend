@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -130,11 +131,24 @@ func (r *personRepository) List(ctx context.Context, opts FilterOptions) ([]*mod
 
 	// Apply ordering
 	if opts.OrderBy != "" {
+		// Handle cases where orderBy might be in format "field:direction"
+		orderBy := opts.OrderBy
+		direction := "ASC"
 		if opts.Desc {
-			query = query.Order(opts.OrderBy + " DESC")
-		} else {
-			query = query.Order(opts.OrderBy + " ASC")
+			direction = "DESC"
 		}
+		
+		// If orderBy contains a colon, split it into field and direction
+		if parts := strings.Split(orderBy, ":"); len(parts) == 2 {
+			orderBy = parts[0]
+			direction = strings.ToUpper(parts[1])
+			if direction != "ASC" && direction != "DESC" {
+				direction = "ASC" // Default to ASC if invalid direction
+			}
+		}
+		
+		// Ensure the field is properly quoted to prevent SQL injection
+		query = query.Order(orderBy + " " + direction)
 	} else {
 		query = query.Order("name ASC")
 	}

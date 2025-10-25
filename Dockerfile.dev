@@ -1,5 +1,5 @@
 # Development Dockerfile with hot reload
-FROM golang:1.24-alpine AS dev
+FROM golang:1.25-alpine AS dev
 
 # Install required packages
 RUN apk add --no-cache git make gcc musl-dev sqlite-dev

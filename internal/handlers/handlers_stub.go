@@ -57,49 +57,7 @@ func (h *reflectionHandler) GetMoodTrends(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Not implemented 118"})
 }
 
-// NudgeHandler stub implementation
-type nudgeHandler struct {
-	nudgeService services.NudgeService
-}
-
-// NewNudgeHandler creates a new nudge handler
-func NewNudgeHandler(nudgeService services.NudgeService) NudgeHandler {
-	return &nudgeHandler{
-		nudgeService: nudgeService,
-	}
-}
-
-func (h *nudgeHandler) List(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 119"})
-}
-
-func (h *nudgeHandler) Get(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 120"})
-}
-
-func (h *nudgeHandler) MarkSeen(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 121"})
-}
-
-func (h *nudgeHandler) MarkActedOn(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 122"})
-}
-
-func (h *nudgeHandler) Dismiss(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 123"})
-}
-
-func (h *nudgeHandler) GetActive(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 124"})
-}
-
-func (h *nudgeHandler) GetHistory(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 125"})
-}
-
-func (h *nudgeHandler) GenerateNudges(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Not implemented 126"})
-}
+// Note: NudgeHandler is implemented in nudge_handler.go
 
 // GDPRHandler stub implementation
 type gdprHandler struct {
