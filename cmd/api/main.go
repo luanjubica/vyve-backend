@@ -196,7 +196,7 @@ func main() {
 	routes.Setup(app, &routes.Handlers{
 		Auth:        authHandler,
 		User:        userHandler,
-		Person:      personHandler,     // Now handles both person and people operations
+		Person:      personHandler, // Now handles both person and people operations
 		Interaction: interactionHandler,
 		Reflection:  reflectionHandler,
 		Nudge:       nudgeHandler,
@@ -289,16 +289,26 @@ func setupMiddleware(app *fiber.App, cfg *config.Config) {
 
 func initializeStorage(cfg *config.Config) storage.Storage {
 	if cfg.Env == "production" {
-		s3Storage, err := storage.NewS3Storage(cfg.AWS)
-		if err != nil {
-			log.Fatalf("Failed to initialize S3 storage: %v", err)
+		// Try S3 first
+		if cfg.AWS.AccessKeyID != "" && cfg.AWS.SecretAccessKey != "" {
+			s3Storage, err := storage.NewS3Storage(cfg.AWS)
+			if err != nil {
+				log.Printf("Warning: Failed to initialize S3 storage: %v", err)
+				log.Println("Storage features will be disabled")
+				return nil
+			}
+			return s3Storage
 		}
-		return s3Storage
+		log.Println("Warning: S3 credentials not configured, storage features disabled")
+		return nil
 	}
 
+	// Development mode - try MinIO
 	minioStorage, err := storage.NewMinIOStorage(cfg.Storage)
 	if err != nil {
-		log.Fatalf("Failed to initialize MinIO storage: %v", err)
+		log.Printf("Warning: Failed to initialize MinIO storage: %v", err)
+		log.Println("Storage features will be disabled in development")
+		return nil
 	}
 	return minioStorage
 }
@@ -329,7 +339,7 @@ func initializeAIService(cfg *config.Config) *ai.Service {
 		log.Println("AI insights feature is disabled")
 		return nil
 	}
-	
+
 	aiConfig := ai.Config{
 		Provider:         cfg.AI.Provider,
 		OpenAIKey:        cfg.AI.OpenAIKey,
@@ -342,13 +352,13 @@ func initializeAIService(cfg *config.Config) *ai.Service {
 		CacheTTL:         cfg.AI.CacheTTL,
 		RateLimitPerUser: cfg.AI.RateLimitPerUser,
 	}
-	
+
 	aiService, err := ai.NewService(aiConfig)
 	if err != nil {
 		log.Printf("Failed to initialize AI service: %v", err)
 		return nil
 	}
-	
+
 	log.Printf("AI service initialized with provider: %s", cfg.AI.Provider)
 	return aiService
 }

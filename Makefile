@@ -168,5 +168,31 @@ backup-db: ## Backup database
 	@echo "$(GREEN)Backing up database...$(NC)"
 	docker compose -f docker-compose.dev.yml exec postgres pg_dump -U vyve vyve_dev > backup_$(shell date +%Y%m%d_%H%M%S).sql
 
+# Railway Commands
+railway-migrate: ## Run migrations on Railway database
+	@echo "$(GREEN)Running migrations on Railway...$(NC)"
+	railway run migrate -path $(MIGRATE_PATH) -database "$$DATABASE_URL" up
+
+railway-connect: ## Connect to Railway PostgreSQL
+	@echo "$(GREEN)Connecting to Railway database...$(NC)"
+	railway connect Postgres
+
+railway-logs: ## Show Railway logs
+	@echo "$(GREEN)Showing Railway logs...$(NC)"
+	railway logs
+
+railway-export-local: ## Export local database
+	@echo "$(GREEN)Exporting local database...$(NC)"
+	docker compose -f docker-compose.dev.yml exec -T postgres pg_dump -U vyve vyve_dev --clean --if-exists > railway_export_$(shell date +%Y%m%d_%H%M%S).sql
+	@echo "$(GREEN)Export complete: railway_export_*.sql$(NC)"
+
+railway-import: ## Import local database to Railway (usage: make railway-import file=backup.sql)
+	@echo "$(GREEN)Importing to Railway database...$(NC)"
+	railway connect Postgres < $(file)
+
+railway-status: ## Check Railway deployment status
+	@echo "$(GREEN)Checking Railway status...$(NC)"
+	railway status
+
 # Default target
 .DEFAULT_GOAL := help
