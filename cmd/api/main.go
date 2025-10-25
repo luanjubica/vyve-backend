@@ -182,7 +182,7 @@ func main() {
 		WriteTimeout:          15 * time.Second,
 		IdleTimeout:           60 * time.Second,
 		BodyLimit:             10 * 1024 * 1024, // 10MB
-		Prefork:               cfg.Env == "production",
+		Prefork:               false, // Disabled for containerized deployments (Railway, Docker, etc.)
 	})
 
 	// Global middleware
