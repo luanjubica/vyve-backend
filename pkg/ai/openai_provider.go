@@ -357,3 +357,11 @@ func extractJSON(text string) string {
 	}
 	return text
 }
+
+// truncate truncates a string to a maximum length
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
