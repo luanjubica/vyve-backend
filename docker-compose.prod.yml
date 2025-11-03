@@ -46,6 +46,17 @@ services:
       - SMTP_FROM=${SMTP_FROM}
       - APP_URL=${APP_URL}
       - SENTRY_DSN=${SENTRY_DSN:-}
+      # AI Configuration
+      - FEATURE_AI_INSIGHTS=${FEATURE_AI_INSIGHTS:-false}
+      - AI_PROVIDER=${AI_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-3-5-sonnet-20241022}
+      - AI_MAX_TOKENS=${AI_MAX_TOKENS:-2000}
+      - AI_TEMPERATURE=${AI_TEMPERATURE:-0.7}
+      - AI_CACHE_ENABLED=${AI_CACHE_ENABLED:-true}
+      - AI_RATE_LIMIT_PER_USER=${AI_RATE_LIMIT_PER_USER:-10}
     restart: always
     logging:
       driver: json-file
