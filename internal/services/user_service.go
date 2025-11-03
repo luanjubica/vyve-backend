@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vyve/vyve-backend/internal/models"
 	"github.com/vyve/vyve-backend/internal/repository"
+	"github.com/vyve/vyve-backend/pkg/analytics"
 	"github.com/vyve/vyve-backend/pkg/storage"
 )
 
@@ -37,15 +38,17 @@ type UserService interface {
 }
 
 type userService struct {
-	userRepo repository.UserRepository
-	storage  storage.Storage
+	userRepo  repository.UserRepository
+	storage   storage.Storage
+	analytics analytics.Analytics
 }
 
 // NewUserService creates a new user service
-func NewUserService(userRepo repository.UserRepository, storage storage.Storage) UserService {
+func NewUserService(userRepo repository.UserRepository, storage storage.Storage, analyticsService analytics.Analytics) UserService {
 	return &userService{
-		userRepo: userRepo,
-		storage:  storage,
+		userRepo:  userRepo,
+		storage:   storage,
+		analytics: analyticsService,
 	}
 }
 
@@ -79,6 +82,9 @@ func (s *userService) Update(ctx context.Context, id uuid.UUID, updates map[stri
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
+
+	// Track profile update event
+	go analytics.TrackProfileUpdate(ctx, s.analytics, id.String(), updates)
 
 	return user, nil
 }
@@ -147,7 +153,15 @@ func (s *userService) UpdateSettings(ctx context.Context, userID uuid.UUID, sett
 		user.Settings[key] = value
 	}
 
-	return s.userRepo.Update(ctx, user)
+	err = s.userRepo.Update(ctx, user)
+	if err != nil {
+		return err
+	}
+
+	// Track settings update event
+	go analytics.TrackSettingsUpdate(ctx, s.analytics, userID.String(), settings)
+
+	return nil
 }
 
 // GetSettings gets user settings
@@ -246,6 +260,9 @@ func (s *userService) UpdateOnboardingStatus(ctx context.Context, userID uuid.UU
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
+
+	// Track onboarding event
+	go analytics.TrackOnboarding(ctx, s.analytics, userID.String(), completed, currentStep)
 
 	// Return the updated status
 	return s.GetOnboardingStatus(ctx, userID)

@@ -151,12 +151,12 @@ func main() {
 	repos := repository.NewRepositories(db)
 
 	// Initialize services
-	authService := services.NewAuthService(repos.User, redisClient, cfg.JWT, cfg)
-	userService := services.NewUserService(repos.User, storageService)
-	personService := services.NewPersonService(repos.Person)
+	authService := services.NewAuthService(repos.User, redisClient, cfg.JWT, cfg, analyticsService)
+	userService := services.NewUserService(repos.User, storageService, analyticsService)
+	personService := services.NewPersonService(repos.Person, analyticsService)
 	interactionService := services.NewInteractionService(repos.Interaction, repos.Person, analyticsService)
 	reflectionService := services.NewReflectionService(repos.Reflection)
-	nudgeService := services.NewNudgeService(repos.Nudge, notificationService)
+	nudgeService := services.NewNudgeService(repos.Nudge, notificationService, analyticsService)
 	gdprService := services.NewGDPRService(repos, cfg.Encryption)
 	dictionaryService := services.NewDictionaryService(db)
 	analysisService := services.NewAnalysisService(aiService, repos.Analysis, repos.Person, repos.Interaction)
@@ -248,7 +248,15 @@ func setupMiddleware(app *fiber.App, cfg *config.Config) {
 	}
 
 	// Security headers
-	app.Use(helmet.New())
+	app.Use(helmet.New(helmet.Config{
+		XSSProtection:             "1; mode=block",
+		ContentTypeNosniff:        "nosniff",
+		XFrameOptions:             "SAMEORIGIN",
+		HSTSMaxAge:                31536000, // 1 year
+		HSTSExcludeSubdomains:     false,
+		ContentSecurityPolicy:     "default-src 'self'",
+		HSTSPreloadEnabled:        cfg.Env == "production",
+	}))
 
 	// CORS
 	app.Use(cors.New(cors.Config{

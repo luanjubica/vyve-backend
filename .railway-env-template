@@ -1,0 +1,113 @@
+# Railway Environment Variables Template
+# Copy these to your Railway service → Variables tab
+
+# ============================================
+# CRITICAL - Required for app to start
+# ============================================
+
+# Database Connection (Railway auto-provides, but needs SSL override)
+# In Railway: Use variable reference to Postgres.DATABASE_URL and append ?sslmode=require
+DATABASE_URL=${{Postgres.DATABASE_URL}}?sslmode=require
+
+# JWT Secret - CHANGE THIS to a random 32+ character string
+JWT_SECRET=change-this-to-a-long-random-string-minimum-32-characters
+
+# Environment
+ENV=production
+
+# Server Port (Railway auto-provides, but good to set as fallback)
+PORT=8080
+
+# ============================================
+# RECOMMENDED - For full functionality
+# ============================================
+
+# Redis Cache (Railway auto-provides if you add Redis service)
+REDIS_URL=${{Redis.REDIS_URL}}
+
+# CORS - Update with your actual frontend domain(s)
+# For development, use * (wildcard)
+# For production, use specific domains: https://app.vyve.com,https://vyve.com
+CORS_ORIGINS=*
+
+# Database SSL Mode (alternative to DATABASE_URL override)
+DB_SSL_MODE=require
+
+# ============================================
+# OPTIONAL - Add when ready
+# ============================================
+
+# AWS S3 Storage (for file uploads)
+# AWS_REGION=us-east-1
+# AWS_ACCESS_KEY_ID=your-aws-access-key
+# AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+# S3_BUCKET=vyve-uploads
+
+# AI Features (OpenAI or Anthropic)
+# FEATURE_AI_INSIGHTS=true
+# AI_PROVIDER=openai
+# OPENAI_API_KEY=sk-proj-your-key-here
+# OPENAI_MODEL=gpt-4o
+
+# Firebase Cloud Messaging (Push Notifications)
+# FCM_PROJECT_ID=your-firebase-project-id
+# FCM_KEY=your-fcm-server-key
+
+# Analytics (Amplitude)
+# AMPLITUDE_KEY=your-amplitude-api-key
+# ANALYTICS_ENABLED=true
+
+# OAuth Providers
+# GOOGLE_CLIENT_ID=your-google-client-id
+# GOOGLE_CLIENT_SECRET=your-google-client-secret
+# GOOGLE_REDIRECT_URL=https://your-app.up.railway.app/api/v1/auth/google/callback
+
+# ============================================
+# ADVANCED - Usually not needed
+# ============================================
+
+# Rate Limiting
+# RATE_LIMIT=100
+# RATE_LIMIT_WINDOW=60
+
+# Logging
+# LOG_LEVEL=info
+# LOG_FORMAT=json
+
+# JWT Configuration
+# JWT_EXPIRY=24h
+# REFRESH_TOKEN_EXPIRY=168h
+# JWT_ISSUER=vyve.app
+
+# Database Connection Pool
+# DB_MAX_CONNECTIONS=25
+# DB_MAX_IDLE_CONNECTIONS=5
+# DB_CONNECTION_MAX_LIFETIME=5m
+
+# Feature Flags
+# FEATURE_PUSH_NOTIFICATIONS=true
+# FEATURE_SOCIAL_AUTH=true
+# FEATURE_DATA_EXPORT=true
+
+# ============================================
+# NOTES
+# ============================================
+
+# 1. Variable References:
+#    Use ${{ServiceName.VARIABLE_NAME}} to reference other services
+#    Example: ${{Postgres.DATABASE_URL}}
+
+# 2. Service Linking:
+#    Make sure PostgreSQL and Redis services are linked to your backend service
+#    Railway → Service → Settings → Check "Connected Services"
+
+# 3. SSL Mode:
+#    Railway PostgreSQL requires SSL. Always use sslmode=require
+
+# 4. Secrets:
+#    Never commit actual secrets to git
+#    Use Railway's variable management for all sensitive data
+
+# 5. Testing:
+#    Use Railway CLI to test locally with production variables:
+#    railway run go run cmd/api/main.go

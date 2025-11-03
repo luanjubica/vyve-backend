@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vyve/vyve-backend/internal/models"
 	"github.com/vyve/vyve-backend/internal/repository"
+	"github.com/vyve/vyve-backend/pkg/analytics"
 	"github.com/vyve/vyve-backend/pkg/notifications"
 )
 
@@ -14,13 +15,15 @@ type nudgeServiceImpl struct {
 	nudgeRepo     repository.NudgeRepository
 	personRepo    repository.PersonRepository
 	notifications notifications.NotificationService
+	analytics     analytics.Analytics
 }
 
 // NewNudgeService creates a new nudge service
-func NewNudgeService(nudgeRepo repository.NudgeRepository, notifications notifications.NotificationService) NudgeService {
+func NewNudgeService(nudgeRepo repository.NudgeRepository, notifications notifications.NotificationService, analyticsService analytics.Analytics) NudgeService {
 	return &nudgeServiceImpl{
 		nudgeRepo:     nudgeRepo,
 		notifications: notifications,
+		analytics:     analyticsService,
 	}
 }
 
@@ -95,7 +98,15 @@ func (s *nudgeServiceImpl) MarkSeen(ctx context.Context, userID, nudgeID uuid.UU
 		nudge.Status = "seen"
 	}
 
-	return s.nudgeRepo.Update(ctx, nudge)
+	err = s.nudgeRepo.Update(ctx, nudge)
+	if err != nil {
+		return err
+	}
+
+	// Track nudge seen event
+	go analytics.TrackNudgeSeen(ctx, s.analytics, userID.String(), nudgeID.String(), nudge.NudgeType, nudge.Source)
+
+	return nil
 }
 
 // MarkActedOn marks a nudge as acted upon
@@ -112,7 +123,15 @@ func (s *nudgeServiceImpl) MarkActedOn(ctx context.Context, userID, nudgeID uuid
 	nudge.Status = "completed"
 	nudge.CompletedAt = &now
 
-	return s.nudgeRepo.Update(ctx, nudge)
+	err = s.nudgeRepo.Update(ctx, nudge)
+	if err != nil {
+		return err
+	}
+
+	// Track nudge acted on event
+	go analytics.TrackNudgeAction(ctx, s.analytics, userID.String(), nudgeID.String(), nudge.NudgeType)
+
+	return nil
 }
 
 // Dismiss dismisses a nudge
@@ -127,7 +146,15 @@ func (s *nudgeServiceImpl) Dismiss(ctx context.Context, userID, nudgeID uuid.UUI
 	nudge.Status = "dismissed"
 	nudge.DismissedAt = &now
 
-	return s.nudgeRepo.Update(ctx, nudge)
+	err = s.nudgeRepo.Update(ctx, nudge)
+	if err != nil {
+		return err
+	}
+
+	// Track nudge dismissed event
+	go analytics.TrackNudgeDismissed(ctx, s.analytics, userID.String(), nudgeID.String(), nudge.NudgeType)
+
+	return nil
 }
 
 // GenerateForPerson generates AI nudges for a specific person (calls analysis service)

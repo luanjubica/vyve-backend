@@ -86,6 +86,8 @@ ENV/
 !.env.example
 !.env.sample
 
+*.md 
+
 # Local development
 .idea_modules/
 

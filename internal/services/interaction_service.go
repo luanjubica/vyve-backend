@@ -145,6 +145,18 @@ func (s *interactionService) Update(ctx context.Context, userID, interactionID u
 		return nil, err
 	}
 
+	// Track interaction updated event
+	go s.analytics.Track(ctx, analytics.Event{
+		UserID:    userID.String(),
+		EventType: analytics.EventInteractionUpdated,
+		Properties: map[string]interface{}{
+			"interaction_id": interactionID.String(),
+			"person_id":      interaction.PersonID.String(),
+			"updated_fields": updates,
+		},
+		Timestamp: time.Now(),
+	})
+
 	// Update person's health score if energy impact changed
 	if _, ok := updates["energy_impact"]; ok {
 		go s.updatePersonMetrics(context.Background(), interaction.PersonID)
@@ -163,6 +175,17 @@ func (s *interactionService) Delete(ctx context.Context, userID, interactionID u
 	if err := s.interactionRepo.Delete(ctx, interaction.ID); err != nil {
 		return err
 	}
+
+	// Track interaction deleted event
+	go s.analytics.Track(ctx, analytics.Event{
+		UserID:    userID.String(),
+		EventType: analytics.EventInteractionDeleted,
+		Properties: map[string]interface{}{
+			"interaction_id": interactionID.String(),
+			"person_id":      interaction.PersonID.String(),
+		},
+		Timestamp: time.Now(),
+	})
 
 	// Update person's health score
 	go s.updatePersonMetrics(context.Background(), interaction.PersonID)
@@ -213,6 +236,16 @@ func (s *interactionService) BulkCreate(ctx context.Context, userID uuid.UUID, r
 		}
 		interactions[i] = interaction
 	}
+
+	// Track bulk create event
+	go s.analytics.Track(ctx, analytics.Event{
+		UserID:    userID.String(),
+		EventType: analytics.EventInteractionsBulkCreated,
+		Properties: map[string]interface{}{
+			"count": len(interactions),
+		},
+		Timestamp: time.Now(),
+	})
 
 	return interactions, nil
 }

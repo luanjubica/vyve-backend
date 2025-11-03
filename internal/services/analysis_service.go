@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -54,36 +55,49 @@ func NewAnalysisService(
 
 // AnalyzeRelationship performs AI analysis on a relationship
 func (s *analysisService) AnalyzeRelationship(ctx context.Context, userID, personID uuid.UUID) (*models.RelationshipAnalysis, error) {
+	log.Printf("[ANALYSIS_SERVICE] Starting analysis for person=%s, user=%s", personID, userID)
+	
 	// Check if AI service is available
 	if s.aiService == nil {
+		log.Printf("[ANALYSIS_SERVICE] ❌ AI service is nil - not configured")
 		return nil, fmt.Errorf("AI service is not available - please enable FEATURE_AI_INSIGHTS and configure API keys")
 	}
 	
+	log.Printf("[ANALYSIS_SERVICE] Fetching person details...")
 	// Get person details
 	person, err := s.personRepo.FindByID(ctx, personID)
 	if err != nil {
+		log.Printf("[ANALYSIS_SERVICE] ❌ Failed to get person: %v", err)
 		return nil, fmt.Errorf("failed to get person: %w", err)
 	}
 	
 	// Check ownership
 	if person.UserID != userID {
+		log.Printf("[ANALYSIS_SERVICE] ❌ Forbidden: user=%s does not own person=%s", userID, personID)
 		return nil, repository.ErrForbidden
 	}
 	
+	log.Printf("[ANALYSIS_SERVICE] Fetching recent interactions...")
 	// Get recent interactions (last 30)
 	interactions, err := s.personRepo.GetRecentInteractions(ctx, personID, 30)
 	if err != nil {
+		log.Printf("[ANALYSIS_SERVICE] ❌ Failed to get interactions: %v", err)
 		return nil, fmt.Errorf("failed to get interactions: %w", err)
 	}
 	
+	log.Printf("[ANALYSIS_SERVICE] Found %d interactions, building AI request...", len(interactions))
 	// Build AI request
 	aiReq := s.buildAnalysisRequest(person, interactions)
 	
+	log.Printf("[ANALYSIS_SERVICE] Calling AI service for analysis...")
 	// Call AI service
 	aiResp, err := s.aiService.Analyze(ctx, aiReq)
 	if err != nil {
+		log.Printf("[ANALYSIS_SERVICE] ❌ AI analysis failed: %v", err)
 		return nil, fmt.Errorf("AI analysis failed: %w", err)
 	}
+	
+	log.Printf("[ANALYSIS_SERVICE] ✅ AI analysis completed successfully")
 	
 	// Create analysis record
 	analysis := &models.RelationshipAnalysis{
@@ -109,10 +123,13 @@ func (s *analysisService) AnalyzeRelationship(ctx context.Context, userID, perso
 		AnalyzedAt:           time.Now(),
 	}
 	
+	log.Printf("[ANALYSIS_SERVICE] Saving analysis to database...")
 	if err := s.analysisRepo.CreateAnalysis(ctx, analysis); err != nil {
+		log.Printf("[ANALYSIS_SERVICE] ❌ Failed to save analysis to database: %v", err)
 		return nil, fmt.Errorf("failed to save analysis: %w", err)
 	}
 	
+	log.Printf("[ANALYSIS_SERVICE] ✅ Analysis saved successfully with ID: %s", analysis.ID)
 	return analysis, nil
 }
 

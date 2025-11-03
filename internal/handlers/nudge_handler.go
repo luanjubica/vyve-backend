@@ -222,8 +222,15 @@ func (h *nudgeHandler) GenerateNudges(c *fiber.Ctx) error {
 		PersonID *string `json:"person_id"` // Optional - generate for specific person
 	}
 
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	// Try to parse body, but ignore errors if body is empty
+	// This allows both empty POST and POST with JSON body
+	if len(c.Body()) > 0 {
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":   "Invalid request body",
+				"details": err.Error(),
+			})
+		}
 	}
 
 	// If person_id provided, generate for that person

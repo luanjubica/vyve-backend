@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"log"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/vyve/vyve-backend/internal/middleware"
@@ -55,6 +57,13 @@ func (h *analysisHandler) GetPersonAnalysis(c *fiber.Ctx) error {
 
 	analysis, err := h.analysisService.GetLatestAnalysis(c.Context(), userID, personID)
 	if err != nil {
+		// If AI service is unavailable, return a helpful message
+		if err.Error() == "AI service is not available - please enable FEATURE_AI_INSIGHTS and configure API keys" {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error":   "AI analysis feature is currently unavailable",
+				"message": "Please configure AI service settings to enable relationship analysis",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to get analysis",
 			"details": err.Error(),
@@ -81,14 +90,26 @@ func (h *analysisHandler) RefreshPersonAnalysis(c *fiber.Ctx) error {
 		})
 	}
 
+	log.Printf("[ANALYSIS_HANDLER] Starting analysis refresh for person=%s, user=%s", personID, userID)
+	
 	analysis, err := h.analysisService.RefreshAnalysis(c.Context(), userID, personID)
 	if err != nil {
+		log.Printf("[ANALYSIS_HANDLER] ❌ Analysis refresh failed for person=%s: %v", personID, err)
+		
+		// If AI service is unavailable, return a helpful message
+		if err.Error() == "AI service is not available - please enable FEATURE_AI_INSIGHTS and configure API keys" {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error":   "AI analysis feature is currently unavailable",
+				"message": "Please configure AI service settings to enable relationship analysis",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to refresh analysis",
 			"details": err.Error(),
 		})
 	}
 
+	log.Printf("[ANALYSIS_HANDLER] ✅ Analysis refresh successful for person=%s", personID)
 	return c.JSON(fiber.Map{
 		"analysis": analysis,
 		"message":  "Analysis refreshed successfully",
@@ -146,16 +167,29 @@ func (h *analysisHandler) GetPersonRecommendations(c *fiber.Ctx) error {
 	recommendations, err := h.analysisService.GetRecommendationsForPerson(c.Context(), userID, personID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to get recommendations",
+			"error":   "Failed to get recommendations",
+			"details": err.Error(),
 		})
 	}
 
-	// If no recommendations exist, generate them
+	// If no recommendations exist, try to generate them (but don't block)
 	if len(recommendations) == 0 {
 		recommendations, err = h.analysisService.GenerateRecommendations(c.Context(), userID, personID)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to generate recommendations",
+			// If AI service is unavailable, return empty list with message
+			if err.Error() == "AI service is not available - please enable FEATURE_AI_INSIGHTS and configure API keys" {
+				return c.Status(fiber.StatusOK).JSON(fiber.Map{
+					"recommendations": []interface{}{},
+					"count":           0,
+					"message":         "AI recommendations feature is currently unavailable. Please configure AI service settings.",
+				})
+			}
+			// For other errors, still return empty but log the error
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
+				"recommendations": []interface{}{},
+				"count":           0,
+				"message":         "No recommendations available at this time",
+				"error":           err.Error(),
 			})
 		}
 	}

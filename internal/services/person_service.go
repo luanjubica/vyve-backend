@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vyve/vyve-backend/internal/models"
 	"github.com/vyve/vyve-backend/internal/repository"
+	"github.com/vyve/vyve-backend/pkg/analytics"
 )
 
 // PersonService handles person/relationship business logic
@@ -31,12 +33,14 @@ type PersonService interface {
 
 type personService struct {
 	personRepo repository.PersonRepository
+	analytics  analytics.Analytics
 }
 
 // NewPersonService creates a new person service
-func NewPersonService(personRepo repository.PersonRepository) PersonService {
+func NewPersonService(personRepo repository.PersonRepository, analyticsService analytics.Analytics) PersonService {
 	return &personService{
 		personRepo: personRepo,
+		analytics:  analyticsService,
 	}
 }
 
@@ -82,6 +86,9 @@ func (s *personService) Create(ctx context.Context, userID uuid.UUID, req Create
 	if err := s.personRepo.Create(ctx, person); err != nil {
 		return nil, err
 	}
+
+	// Track person added event
+	go analytics.TrackPersonAdded(ctx, s.analytics, userID.String(), person.ID.String(), req.Relationship)
 
 	return person, nil
 }
@@ -158,6 +165,9 @@ func (s *personService) Update(ctx context.Context, userID, personID uuid.UUID, 
 		return nil, err
 	}
 
+	// Track person updated event
+	go analytics.TrackPersonUpdated(ctx, s.analytics, userID.String(), personID.String(), updates)
+
 	return person, nil
 }
 
@@ -168,7 +178,15 @@ func (s *personService) Delete(ctx context.Context, userID, personID uuid.UUID) 
 		return err
 	}
 
-	return s.personRepo.Delete(ctx, person.ID)
+	err = s.personRepo.Delete(ctx, person.ID)
+	if err != nil {
+		return err
+	}
+
+	// Track person deleted event
+	go analytics.TrackPersonDeleted(ctx, s.analytics, userID.String(), personID.String())
+
+	return nil
 }
 
 // Restore restores a deleted person

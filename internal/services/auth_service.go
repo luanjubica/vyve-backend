@@ -19,6 +19,7 @@ import (
 	"github.com/vyve/vyve-backend/internal/config"
 	"github.com/vyve/vyve-backend/internal/models"
 	"github.com/vyve/vyve-backend/internal/repository"
+	"github.com/vyve/vyve-backend/pkg/analytics"
 	"github.com/vyve/vyve-backend/pkg/cache"
 	"github.com/vyve/vyve-backend/pkg/utils"
 )
@@ -55,19 +56,21 @@ type AuthService interface {
 }
 
 type authService struct {
-	userRepo repository.UserRepository
-	cache    cache.Cache
-	jwtCfg   config.JWTConfig
-	cfg      *config.Config
+	userRepo  repository.UserRepository
+	cache     cache.Cache
+	jwtCfg    config.JWTConfig
+	cfg       *config.Config
+	analytics analytics.Analytics
 }
 
 // NewAuthService creates a new auth service
-func NewAuthService(userRepo repository.UserRepository, cache cache.Cache, jwtCfg config.JWTConfig, cfg *config.Config) AuthService {
+func NewAuthService(userRepo repository.UserRepository, cache cache.Cache, jwtCfg config.JWTConfig, cfg *config.Config, analyticsService analytics.Analytics) AuthService {
 	return &authService{
-		userRepo: userRepo,
-		cache:    cache,
-		jwtCfg:   jwtCfg,
-		cfg:      cfg,
+		userRepo:  userRepo,
+		cache:     cache,
+		jwtCfg:    jwtCfg,
+		cfg:       cfg,
+		analytics: analyticsService,
 	}
 }
 
@@ -190,6 +193,17 @@ func (s *authService) Register(ctx context.Context, req RegisterRequest) (*AuthR
 	// Send verification email
 	go s.sendVerificationEmail(user.Email, user.ID.String())
 
+	// Track sign up event
+	go s.analytics.Track(ctx, analytics.Event{
+		UserID:    user.ID.String(),
+		EventType: analytics.EventUserSignUp,
+		Properties: map[string]interface{}{
+			"username": user.Username,
+			"email":    user.Email,
+		},
+		Timestamp: time.Now(),
+	})
+
 	return &AuthResponse{
 		User:         s.mapUserToDTO(user),
 		AccessToken:  tokenPair.AccessToken,
@@ -230,13 +244,16 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*AuthRespons
 		user.ID, user.Email, user.Username, user.EmailVerified)
 
 	// Check password
-	// err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
-	// if err != nil {
-	// 	log.Printf("Password comparison failed: %v", err)
-	// 	log.Printf("Stored hash length: %d, starts with: %s...",
-	// 		len(user.PasswordHash), safeSubstring(user.PasswordHash, 0, 10))
-	// 	return nil, repository.ErrInvalidCredentials
-	// }
+	log.Printf("user hash %v", user.PasswordHash)
+	log.Printf("user password %v", req.Password)
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+	if err != nil {
+		log.Printf("Password comparison failed: %v", err)
+		log.Printf("Stored hash length: %d, starts with: %s...",
+			len(user.PasswordHash), safeSubstring(user.PasswordHash, 0, 10))
+		return nil, repository.ErrInvalidCredentials
+	}
 
 	log.Println("Password check passed")
 
@@ -251,6 +268,17 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*AuthRespons
 	if err != nil {
 		return nil, err
 	}
+
+	// Track login event
+	go s.analytics.Track(ctx, analytics.Event{
+		UserID:    user.ID.String(),
+		EventType: analytics.EventUserLogin,
+		Properties: map[string]interface{}{
+			"username": user.Username,
+			"email":    user.Email,
+		},
+		Timestamp: time.Now(),
+	})
 
 	return &AuthResponse{
 		User:         s.mapUserToDTO(user),
@@ -303,6 +331,13 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*A
 
 // Logout logs out a user
 func (s *authService) Logout(ctx context.Context, userID uuid.UUID, token string) error {
+	// Track logout event
+	go s.analytics.Track(ctx, analytics.Event{
+		UserID:    userID.String(),
+		EventType: analytics.EventUserLogout,
+		Timestamp: time.Now(),
+	})
+
 	// Revoke refresh token if provided
 	if token != "" {
 		if err := s.userRepo.RevokeRefreshToken(ctx, token); err != nil {
@@ -626,13 +661,13 @@ func (s *authService) HandleLinkedInAuth(ctx context.Context, code string) (*Aut
 }
 
 func (s *authService) HandleAppleAuth(ctx context.Context, code string) (*AuthResponse, error) {
-    // TODO: Implement Apple OAuth
-    return nil, errors.New("not implemented 212")
+	// TODO: Implement Apple OAuth
+	return nil, errors.New("not implemented 212")
 }
 
 func (s *authService) LinkOAuthAccount(ctx context.Context, userID uuid.UUID, provider string, code string) error {
-    // TODO: Implement
-    return errors.New("not implemented 213")
+	// TODO: Implement
+	return errors.New("not implemented 213")
 }
 
 func (s *authService) UnlinkOAuthAccount(ctx context.Context, userID uuid.UUID, provider string) error {
@@ -644,18 +679,18 @@ func (s *authService) RevokeToken(ctx context.Context, token string) error {
 }
 
 func (s *authService) CreateSession(ctx context.Context, userID uuid.UUID, metadata SessionMetadata) (*Session, error) {
-    // TODO: Implement
-    return nil, errors.New("not implemented 214")
+	// TODO: Implement
+	return nil, errors.New("not implemented 214")
 }
 
 func (s *authService) GetSession(ctx context.Context, sessionID string) (*Session, error) {
-    // TODO: Implement
-    return nil, errors.New("not implemented 215")
+	// TODO: Implement
+	return nil, errors.New("not implemented 215")
 }
 
 func (s *authService) EndSession(ctx context.Context, sessionID string) error {
-    // TODO: Implement
-    return errors.New("not implemented 216")
+	// TODO: Implement
+	return errors.New("not implemented 216")
 }
 
 // (duplicate removed)

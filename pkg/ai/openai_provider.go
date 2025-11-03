@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -53,22 +54,29 @@ func NewOpenAIProvider(config OpenAIConfig) (*OpenAIProvider, error) {
 // Analyze generates a relationship analysis using OpenAI
 func (p *OpenAIProvider) Analyze(ctx context.Context, req AnalysisRequest) (*AnalysisResponse, error) {
 	startTime := time.Now()
+	log.Printf("[OPENAI_PROVIDER] Starting analysis for person: %s", req.PersonName)
 	
 	prompt := p.buildAnalysisPrompt(req)
+	log.Printf("[OPENAI_PROVIDER] Built prompt, calling OpenAI API with model=%s", p.config.Model)
 	
 	response, tokensUsed, err := p.callOpenAI(ctx, prompt)
 	if err != nil {
+		log.Printf("[OPENAI_PROVIDER] ❌ OpenAI API call failed: %v", err)
 		return nil, fmt.Errorf("OpenAI API call failed: %w", err)
 	}
 	
+	log.Printf("[OPENAI_PROVIDER] Received response, tokens used: %d", tokensUsed)
+	
 	analysis, err := p.parseAnalysisResponse(response)
 	if err != nil {
+		log.Printf("[OPENAI_PROVIDER] ❌ Failed to parse response: %v", err)
 		return nil, fmt.Errorf("failed to parse analysis response: %w", err)
 	}
 	
 	analysis.TokensUsed = tokensUsed
 	analysis.ProcessingTimeMs = int(time.Since(startTime).Milliseconds())
 	
+	log.Printf("[OPENAI_PROVIDER] ✅ Analysis completed in %dms", analysis.ProcessingTimeMs)
 	return analysis, nil
 }
 
@@ -104,6 +112,7 @@ func (p *OpenAIProvider) GetModelName() string {
 
 // callOpenAI makes a request to the OpenAI API
 func (p *OpenAIProvider) callOpenAI(ctx context.Context, prompt string) (string, int, error) {
+	log.Printf("[OPENAI_API] Preparing request to OpenAI...")
 	reqBody := map[string]interface{}{
 		"model": p.config.Model,
 		"messages": []map[string]string{
@@ -122,29 +131,46 @@ func (p *OpenAIProvider) callOpenAI(ctx context.Context, prompt string) (string,
 	
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
+		log.Printf("[OPENAI_API] ❌ Failed to marshal request: %v", err)
 		return "", 0, err
 	}
 	
 	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonData))
 	if err != nil {
+		log.Printf("[OPENAI_API] ❌ Failed to create request: %v", err)
 		return "", 0, err
 	}
 	
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+p.config.APIKey)
 	
+	// Log API key for debugging (first/last chars only for security)
+	keyLen := len(p.config.APIKey)
+	if keyLen > 20 {
+		log.Printf("[OPENAI_API] Using API key: %s...%s (length: %d)", p.config.APIKey[:10], p.config.APIKey[keyLen-4:], keyLen)
+	} else {
+		log.Printf("[OPENAI_API] Using API key length: %d", keyLen)
+	}
+	
+	log.Printf("[OPENAI_API] Sending request to OpenAI...")
+	startTime := time.Now()
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
+		log.Printf("[OPENAI_API] ❌ HTTP request failed after %v: %v", time.Since(startTime), err)
 		return "", 0, err
 	}
 	defer resp.Body.Close()
 	
+	log.Printf("[OPENAI_API] Received response with status %d in %v", resp.StatusCode, time.Since(startTime))
+	
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.Printf("[OPENAI_API] ❌ Failed to read response body: %v", err)
 		return "", 0, err
 	}
 	
 	if resp.StatusCode != http.StatusOK {
+		log.Printf("[OPENAI_API] ❌ Non-OK status %d, response: %s", resp.StatusCode, string(body))
 		return "", 0, fmt.Errorf("OpenAI API error (status %d): %s", resp.StatusCode, string(body))
 	}
 	
@@ -281,11 +307,15 @@ Focus on practical, specific actions. Prioritize based on urgency and impact.`
 
 // parseAnalysisResponse parses the OpenAI response into AnalysisResponse
 func (p *OpenAIProvider) parseAnalysisResponse(response string) (*AnalysisResponse, error) {
+	log.Printf("[OPENAI_PROVIDER] Raw response length: %d, first 100 chars: %s", len(response), truncate(response, 100))
+	
 	// Try to extract JSON from markdown code blocks if present
-	response = extractJSON(response)
+	cleaned := extractJSON(response)
+	log.Printf("[OPENAI_PROVIDER] After extraction, length: %d, first 100 chars: %s", len(cleaned), truncate(cleaned, 100))
 	
 	var result AnalysisResponse
-	if err := json.Unmarshal([]byte(response), &result); err != nil {
+	if err := json.Unmarshal([]byte(cleaned), &result); err != nil {
+		log.Printf("[OPENAI_PROVIDER] ❌ JSON parse error. Full response: %s", response)
 		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
 	}
 	

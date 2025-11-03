@@ -44,11 +44,19 @@ const (
 	EventUserLogin             = "user_login"
 	EventUserLogout            = "user_logout"
 	EventInteractionLogged     = "interaction_logged"
+	EventInteractionUpdated    = "interaction_updated"
+	EventInteractionDeleted    = "interaction_deleted"
+	EventInteractionsBulkCreated = "interactions_bulk_created"
 	EventReflectionCompleted   = "reflection_completed"
 	EventNudgeGenerated        = "nudge_generated"
+	EventNudgeSeen             = "nudge_seen"
 	EventNudgeActedOn          = "nudge_acted_on"
+	EventNudgeDismissed        = "nudge_dismissed"
 	EventPersonAdded           = "person_added"
 	EventPersonUpdated         = "person_updated"
+	EventPersonDeleted         = "person_deleted"
+	EventPersonViewed          = "person_viewed"
+	EventPersonSearched        = "person_searched"
 	EventHealthScoreChanged    = "health_score_changed"
 	EventStreakUpdated         = "streak_updated"
 	EventNotificationSent      = "notification_sent"
@@ -56,6 +64,12 @@ const (
 	EventDataExported          = "data_exported"
 	EventSessionStarted        = "session_started"
 	EventSessionEnded          = "session_ended"
+	EventProfileUpdated        = "profile_updated"
+	EventSettingsUpdated       = "settings_updated"
+	EventPasswordChanged       = "password_changed"
+	EventAccountDeleted        = "account_deleted"
+	EventOnboardingCompleted   = "onboarding_completed"
+	EventOnboardingStepCompleted = "onboarding_step_completed"
 )
 
 // AmplitudeAnalytics implements Analytics using Amplitude
@@ -280,6 +294,111 @@ func TrackHealthScoreChange(ctx context.Context, analytics Analytics, userID, pe
 			"old_score": oldScore,
 			"new_score": newScore,
 			"change":    newScore - oldScore,
+		},
+		Timestamp: time.Now(),
+	})
+}
+
+// TrackPersonAdded tracks when a person is added
+func TrackPersonAdded(ctx context.Context, analytics Analytics, userID, personID, category string) error {
+	return analytics.Track(ctx, Event{
+		UserID:    userID,
+		EventType: EventPersonAdded,
+		Properties: map[string]interface{}{
+			"person_id": personID,
+			"category":  category,
+		},
+		Timestamp: time.Now(),
+	})
+}
+
+// TrackPersonUpdated tracks when a person is updated
+func TrackPersonUpdated(ctx context.Context, analytics Analytics, userID, personID string, updates map[string]interface{}) error {
+	return analytics.Track(ctx, Event{
+		UserID:    userID,
+		EventType: EventPersonUpdated,
+		Properties: map[string]interface{}{
+			"person_id":     personID,
+			"updated_fields": updates,
+		},
+		Timestamp: time.Now(),
+	})
+}
+
+// TrackPersonDeleted tracks when a person is deleted
+func TrackPersonDeleted(ctx context.Context, analytics Analytics, userID, personID string) error {
+	return analytics.Track(ctx, Event{
+		UserID:    userID,
+		EventType: EventPersonDeleted,
+		Properties: map[string]interface{}{
+			"person_id": personID,
+		},
+		Timestamp: time.Now(),
+	})
+}
+
+// TrackNudgeSeen tracks when a nudge is viewed
+func TrackNudgeSeen(ctx context.Context, analytics Analytics, userID, nudgeID, nudgeType, source string) error {
+	return analytics.Track(ctx, Event{
+		UserID:    userID,
+		EventType: EventNudgeSeen,
+		Properties: map[string]interface{}{
+			"nudge_id":   nudgeID,
+			"nudge_type": nudgeType,
+			"source":     source,
+		},
+		Timestamp: time.Now(),
+	})
+}
+
+// TrackNudgeDismissed tracks when a nudge is dismissed
+func TrackNudgeDismissed(ctx context.Context, analytics Analytics, userID, nudgeID, nudgeType string) error {
+	return analytics.Track(ctx, Event{
+		UserID:    userID,
+		EventType: EventNudgeDismissed,
+		Properties: map[string]interface{}{
+			"nudge_id":   nudgeID,
+			"nudge_type": nudgeType,
+		},
+		Timestamp: time.Now(),
+	})
+}
+
+// TrackProfileUpdate tracks profile updates
+func TrackProfileUpdate(ctx context.Context, analytics Analytics, userID string, updates map[string]interface{}) error {
+	return analytics.Track(ctx, Event{
+		UserID:    userID,
+		EventType: EventProfileUpdated,
+		Properties: map[string]interface{}{
+			"updated_fields": updates,
+		},
+		Timestamp: time.Now(),
+	})
+}
+
+// TrackSettingsUpdate tracks settings updates
+func TrackSettingsUpdate(ctx context.Context, analytics Analytics, userID string, settings map[string]interface{}) error {
+	return analytics.Track(ctx, Event{
+		UserID:    userID,
+		EventType: EventSettingsUpdated,
+		Properties: settings,
+		Timestamp: time.Now(),
+	})
+}
+
+// TrackOnboarding tracks onboarding completion
+func TrackOnboarding(ctx context.Context, analytics Analytics, userID string, completed bool, step string) error {
+	eventType := EventOnboardingStepCompleted
+	if completed {
+		eventType = EventOnboardingCompleted
+	}
+	
+	return analytics.Track(ctx, Event{
+		UserID:    userID,
+		EventType: eventType,
+		Properties: map[string]interface{}{
+			"completed": completed,
+			"step":      step,
 		},
 		Timestamp: time.Now(),
 	})
