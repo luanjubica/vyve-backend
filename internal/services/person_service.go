@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/vyve/vyve-backend/internal/models"

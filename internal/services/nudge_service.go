@@ -104,7 +104,7 @@ func (s *nudgeServiceImpl) MarkSeen(ctx context.Context, userID, nudgeID uuid.UU
 	}
 
 	// Track nudge seen event
-	go analytics.TrackNudgeSeen(ctx, s.analytics, userID.String(), nudgeID.String(), nudge.NudgeType, nudge.Source)
+	go analytics.TrackNudgeSeen(ctx, s.analytics, userID.String(), nudgeID.String(), nudge.Type, nudge.Source)
 
 	return nil
 }
@@ -129,7 +129,7 @@ func (s *nudgeServiceImpl) MarkActedOn(ctx context.Context, userID, nudgeID uuid
 	}
 
 	// Track nudge acted on event
-	go analytics.TrackNudgeAction(ctx, s.analytics, userID.String(), nudgeID.String(), nudge.NudgeType)
+	go analytics.TrackNudgeAction(ctx, s.analytics, userID.String(), nudgeID.String(), nudge.Type)
 
 	return nil
 }
@@ -152,7 +152,7 @@ func (s *nudgeServiceImpl) Dismiss(ctx context.Context, userID, nudgeID uuid.UUI
 	}
 
 	// Track nudge dismissed event
-	go analytics.TrackNudgeDismissed(ctx, s.analytics, userID.String(), nudgeID.String(), nudge.NudgeType)
+	go analytics.TrackNudgeDismissed(ctx, s.analytics, userID.String(), nudgeID.String(), nudge.Type)
 
 	return nil
 }
