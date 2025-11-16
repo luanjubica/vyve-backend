@@ -266,7 +266,7 @@ func (h *userHandler) UploadAvatar(c *fiber.Ctx) error {
 		}
 
 		// Get updated user profile
-		user, err := h.userService.GetByID(c.Context(), userID.String())
+		user, err := h.userService.GetByID(c.Context(), userID)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get updated user profile"})
 		}
@@ -314,7 +314,7 @@ func (h *userHandler) UploadAvatar(c *fiber.Ctx) error {
 		"avatar_url": req.AvatarURL,
 	}
 
-	user, err := h.userService.Update(c.Context(), userID.String(), updates)
+	user, err := h.userService.Update(c.Context(), userID, updates)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update avatar"})
 	}
