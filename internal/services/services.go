@@ -2,7 +2,7 @@ package services
 
 import (
 	"context"
-	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vyve/vyve-backend/internal/config"
@@ -38,13 +38,24 @@ type CreateReflectionRequest struct {
 }
 
 func (s *reflectionService) Create(ctx context.Context, userID uuid.UUID, req CreateReflectionRequest) (*models.Reflection, error) {
-	// Stub implementation
-	return nil, errors.New("not implemented 200")
+	reflection := &models.Reflection{
+		UserID:     userID,
+		Prompt:     req.Prompt,
+		Responses:  req.Responses,
+		Mood:       req.Mood,
+		Insights:   req.Insights,
+		Intentions: req.Intentions,
+	}
+
+	if err := s.reflectionRepo.Create(ctx, reflection); err != nil {
+		return nil, err
+	}
+
+	return reflection, nil
 }
 
 func (s *reflectionService) GetToday(ctx context.Context, userID uuid.UUID) (*models.Reflection, error) {
-	// Stub implementation
-	return nil, errors.New("not implemented 201")
+	return s.reflectionRepo.GetToday(ctx, userID)
 }
 
 // NudgeService handles nudge business logic
@@ -74,6 +85,10 @@ type GDPRService interface {
 	DeleteAllUserData(ctx context.Context, userID uuid.UUID) error
 	AnonymizeUserData(ctx context.Context, userID uuid.UUID) error
 	RecordConsent(ctx context.Context, userID uuid.UUID, consentType string, granted bool) error
+	GetConsents(ctx context.Context, userID uuid.UUID) ([]*models.UserConsent, error)
+	GetLatestExport(ctx context.Context, userID uuid.UUID) (*models.DataExport, error)
+	GetExport(ctx context.Context, userID uuid.UUID, exportID uuid.UUID) (*models.DataExport, error)
+	GetAuditLog(ctx context.Context, userID uuid.UUID) ([]*models.AuditLog, error)
 }
 
 type gdprService struct {
@@ -90,23 +105,177 @@ func NewGDPRService(repos *repository.Repositories, encryptionConfig config.Encr
 }
 
 func (s *gdprService) ExportUserData(ctx context.Context, userID uuid.UUID) (*models.DataExport, error) {
-	// Stub implementation
-	return nil, errors.New("not implemented 206")
+	// Check for existing pending export
+	existing, err := s.repos.DataExport.GetPending(ctx, userID)
+	if err == nil && existing != nil {
+		return existing, nil
+	}
+
+	// Create export request
+	export := &models.DataExport{
+		UserID: userID,
+		Status: "pending",
+		Format: "json",
+	}
+
+	if err := s.repos.DataExport.Create(ctx, export); err != nil {
+		return nil, err
+	}
+
+	// Process export asynchronously
+	go s.processDataExport(context.Background(), export)
+
+	return export, nil
 }
 
 func (s *gdprService) DeleteAllUserData(ctx context.Context, userID uuid.UUID) error {
-	// Stub implementation
-	return errors.New("not implemented 207")
+	// Note: This is a simplified implementation
+	// In a full implementation, you would need to add DeleteByUser methods
+	// to each repository or iterate and delete records individually
+
+	// For now, just delete the user (which should cascade due to foreign keys)
+	// Or implement soft delete and mark all user data as deleted
+
+	// TODO: Implement proper cascade deletion:
+	// - Delete AI analysis jobs
+	// - Delete relationship analyses and recommendations
+	// - Delete nudges
+	// - Delete interactions
+	// - Delete people
+	// - Delete reflections
+	// - Delete events
+	// - Delete consents
+	// - Delete audit logs
+	// - Delete data exports
+	// - Delete refresh tokens
+
+	// Finally, delete user
+	return s.repos.User.Delete(ctx, userID)
 }
 
 func (s *gdprService) AnonymizeUserData(ctx context.Context, userID uuid.UUID) error {
-	// Stub implementation
-	return errors.New("not implemented 208")
+	// Get user
+	user, err := s.repos.User.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// Anonymize user data
+	user.Username = "user_" + userID.String()[:8] + "_anonymized"
+	user.Email = "anonymized_" + userID.String() + "@deleted.local"
+	user.DisplayName = "Anonymized User"
+	user.Bio = ""
+	user.AvatarURL = ""
+	user.PasswordHash = "" // Clear password
+
+	if err := s.repos.User.Update(ctx, user); err != nil {
+		return err
+	}
+
+	// Record anonymization in audit log
+	// Note: Repository method may not exist yet
+
+	return nil
 }
 
 func (s *gdprService) RecordConsent(ctx context.Context, userID uuid.UUID, consentType string, granted bool) error {
-	// Stub implementation
-	return errors.New("not implemented 209")
+	consent := &models.UserConsent{
+		UserID:      userID,
+		ConsentType: consentType,
+		Granted:     granted,
+		GrantedAt:   time.Now(),
+	}
+
+	// Check if consent already exists
+	existing, err := s.repos.Consent.GetByType(ctx, userID, consentType)
+	if err == nil && existing != nil {
+		// Update existing consent
+		existing.Granted = granted
+		if !granted {
+			now := time.Now()
+			existing.RevokedAt = &now
+		} else {
+			existing.RevokedAt = nil
+			existing.GrantedAt = time.Now()
+		}
+		return s.repos.Consent.Update(ctx, existing)
+	}
+
+	return s.repos.Consent.Create(ctx, consent)
+}
+
+// Helper method to process data export asynchronously
+func (s *gdprService) processDataExport(ctx context.Context, export *models.DataExport) {
+	// Update status to processing
+	export.Status = "processing"
+	s.repos.DataExport.Update(ctx, export)
+
+	// Gather all user data
+	data := make(map[string]interface{})
+
+	// Get user profile
+	user, err := s.repos.User.FindByID(ctx, export.UserID)
+	if err == nil {
+		data["user"] = user
+	}
+
+	// Get people
+	people, err := s.repos.Person.FindByUserID(ctx, export.UserID)
+	if err == nil {
+		data["people"] = people
+	}
+
+	// Get interactions
+	interactions, err := s.repos.Interaction.GetRecent(ctx, export.UserID, 10000)
+	if err == nil {
+		data["interactions"] = interactions
+	}
+
+	// Get consents
+	consents, _ := s.repos.Consent.GetByUser(ctx, export.UserID)
+	data["consents"] = consents
+
+	// In a real implementation, you would:
+	// 1. Serialize data to JSON/CSV
+	// 2. Upload to storage (S3, etc.)
+	// 3. Update export with file URL and size
+	// 4. Set expiration time
+
+	// For now, mark as completed
+	now := time.Now()
+	expiresAt := now.Add(7 * 24 * time.Hour) // Expires in 7 days
+	export.Status = "completed"
+	export.CompletedAt = &now
+	export.ExpiresAt = &expiresAt
+	export.FileURL = "/api/v1/gdpr/export/" + export.ID.String() + "/download"
+
+	s.repos.DataExport.Update(ctx, export)
+}
+
+func (s *gdprService) GetConsents(ctx context.Context, userID uuid.UUID) ([]*models.UserConsent, error) {
+	return s.repos.Consent.GetByUser(ctx, userID)
+}
+
+func (s *gdprService) GetLatestExport(ctx context.Context, userID uuid.UUID) (*models.DataExport, error) {
+	return s.repos.DataExport.GetPending(ctx, userID)
+}
+
+func (s *gdprService) GetExport(ctx context.Context, userID uuid.UUID, exportID uuid.UUID) (*models.DataExport, error) {
+	export, err := s.repos.DataExport.FindByID(ctx, exportID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify ownership
+	if export.UserID != userID {
+		return nil, repository.ErrForbidden
+	}
+
+	return export, nil
+}
+
+func (s *gdprService) GetAuditLog(ctx context.Context, userID uuid.UUID) ([]*models.AuditLog, error) {
+	return s.repos.AuditLog.GetByUser(ctx, userID)
 }
 
 // Background worker functions

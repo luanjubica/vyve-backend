@@ -78,7 +78,8 @@ type PersonHandler interface {
 	UpdateReminder(c *fiber.Ctx) error
 	Search(c *fiber.Ctx) error
 	GetCategories(c *fiber.Ctx) error
-	
+	UploadAvatar(c *fiber.Ctx) error
+
 	// People operations
 	CountPeople(c *fiber.Ctx) error
 }

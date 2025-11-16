@@ -3,12 +3,15 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/vyve/vyve-backend/internal/models"
 	"github.com/vyve/vyve-backend/internal/repository"
 	"github.com/vyve/vyve-backend/pkg/analytics"
+	"github.com/vyve/vyve-backend/pkg/storage"
 )
 
 // PersonService handles person/relationship business logic
@@ -25,6 +28,7 @@ type PersonService interface {
 	UpdateHealthScore(ctx context.Context, userID, personID uuid.UUID) error
 	GetCategories(ctx context.Context, userID uuid.UUID) ([]string, error)
 	Search(ctx context.Context, userID uuid.UUID, query string) ([]*models.Person, error)
+	UploadAvatar(ctx context.Context, userID, personID uuid.UUID, fileData []byte, contentType string) (*models.Person, error)
 
 	// People operations
 	CountPeople(ctx context.Context, userID uuid.UUID) (int64, error)
@@ -33,13 +37,15 @@ type PersonService interface {
 type personService struct {
 	personRepo repository.PersonRepository
 	analytics  analytics.Analytics
+	storage    storage.Storage
 }
 
 // NewPersonService creates a new person service
-func NewPersonService(personRepo repository.PersonRepository, analyticsService analytics.Analytics) PersonService {
+func NewPersonService(personRepo repository.PersonRepository, analyticsService analytics.Analytics, storageService storage.Storage) PersonService {
 	return &personService{
 		personRepo: personRepo,
 		analytics:  analyticsService,
+		storage:    storageService,
 	}
 }
 
@@ -48,6 +54,7 @@ type CreatePersonRequest struct {
 	Name                  string     `json:"name" validate:"required"`
 	CategoryID            *uuid.UUID `json:"category_id"`
 	Relationship          string     `json:"relationship"`
+	AvatarURL             string     `json:"avatar_url"`
 	CommunicationMethodID *uuid.UUID `json:"communication_method_id"`
 	RelationshipStatusID  *uuid.UUID `json:"relationship_status_id"`
 	IntentionID           *uuid.UUID `json:"intention_id"`
@@ -73,6 +80,7 @@ func (s *personService) Create(ctx context.Context, userID uuid.UUID, req Create
 		UserID:                userID,
 		Name:                  req.Name,
 		Relationship:          req.Relationship,
+		AvatarURL:             req.AvatarURL,
 		CategoryID:            req.CategoryID,
 		CommunicationMethodID: req.CommunicationMethodID,
 		RelationshipStatusID:  req.RelationshipStatusID,
@@ -190,8 +198,10 @@ func (s *personService) Delete(ctx context.Context, userID, personID uuid.UUID) 
 
 // Restore restores a deleted person
 func (s *personService) Restore(ctx context.Context, userID, personID uuid.UUID) error {
-	// TODO: Implement restore logic
-	return errors.New("not implemented 401")
+	// TODO: Implement proper soft-delete restoration
+	// This requires adding a Restore method to the PersonRepository interface
+	// For now, return a helpful error
+	return errors.New("restore functionality requires database-level soft-delete restoration - not yet implemented")
 }
 
 // CountPeople returns the total number of people for a user
@@ -233,6 +243,59 @@ func (s *personService) GetCategories(ctx context.Context, userID uuid.UUID) ([]
 // Search searches people for a user
 func (s *personService) Search(ctx context.Context, userID uuid.UUID, query string) ([]*models.Person, error) {
 	return s.personRepo.Search(ctx, userID, query, 20)
+}
+
+// UploadAvatar uploads an avatar for a person and returns the updated person
+func (s *personService) UploadAvatar(ctx context.Context, userID, personID uuid.UUID, fileData []byte, contentType string) (*models.Person, error) {
+	// Verify person belongs to user
+	person, err := s.personRepo.FindByID(ctx, personID)
+	if err != nil {
+		return nil, err
+	}
+
+	if person.UserID != userID {
+		return nil, repository.ErrForbidden
+	}
+
+	// Check if storage is available
+	if s.storage == nil {
+		return nil, errors.New("storage service not available")
+	}
+
+	// Determine file extension from content type
+	extension := ".jpg"
+	contentTypeLower := strings.ToLower(contentType)
+	if strings.Contains(contentTypeLower, "png") {
+		extension = ".png"
+	} else if strings.Contains(contentTypeLower, "gif") {
+		extension = ".gif"
+	} else if strings.Contains(contentTypeLower, "webp") {
+		extension = ".webp"
+	}
+
+	// Generate storage key: avatars/people/{userID}/{personID}/{uuid}{extension}
+	fileID := uuid.New().String()
+	key := fmt.Sprintf("avatars/people/%s/%s/%s%s", userID.String(), personID.String(), fileID, extension)
+
+	// Upload to storage
+	avatarURL, err := s.storage.Upload(ctx, key, fileData, contentType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload avatar: %w", err)
+	}
+
+	// Update person with new avatar URL
+	updates := map[string]interface{}{
+		"avatar_url": avatarURL,
+	}
+
+	updatedPerson, err := s.Update(ctx, userID, personID, updates)
+	if err != nil {
+		// Try to delete uploaded file if database update fails
+		_ = s.storage.Delete(ctx, key)
+		return nil, fmt.Errorf("failed to update person: %w", err)
+	}
+
+	return updatedPerson, nil
 }
 
 // Helper function removed; calculateHealthScore is defined in interaction_service.go

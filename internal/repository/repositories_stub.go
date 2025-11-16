@@ -53,13 +53,72 @@ func (r *reflectionRepository) FindByID(ctx context.Context, id uuid.UUID) (*mod
 }
 
 func (r *reflectionRepository) GetToday(ctx context.Context, userID uuid.UUID) (*models.Reflection, error) {
-	// Stub implementation
-	return nil, errors.New("not implemented 300")
+	var reflection models.Reflection
+	today := time.Now().Truncate(24 * time.Hour)
+	tomorrow := today.Add(24 * time.Hour)
+
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND created_at >= ? AND created_at < ?", userID, today, tomorrow).
+		Order("created_at DESC").
+		First(&reflection).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	return &reflection, nil
 }
 
 func (r *reflectionRepository) List(ctx context.Context, opts FilterOptions) ([]*models.Reflection, *PaginationResult, error) {
-	// Stub implementation
-	return nil, nil, errors.New("not implemented 301")
+	var reflections []*models.Reflection
+	query := r.db.WithContext(ctx).Model(&models.Reflection{})
+
+	// Apply filters
+	if opts.UserID != uuid.Nil {
+		query = query.Where("user_id = ?", opts.UserID)
+	}
+
+	if opts.StartDate != nil {
+		query = query.Where("created_at >= ?", opts.StartDate)
+	}
+
+	if opts.EndDate != nil {
+		query = query.Where("created_at <= ?", opts.EndDate)
+	}
+
+	// Count total
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, nil, err
+	}
+
+	// Apply pagination
+	page := opts.Page
+	if page < 1 {
+		page = 1
+	}
+	limit := opts.Limit
+	if limit < 1 {
+		limit = 20
+	}
+
+	offset := (page - 1) * limit
+	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&reflections).Error
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pagination := &PaginationResult{
+		Total:      total,
+		Page:       page,
+		Limit:      limit,
+		TotalPages: int((total + int64(limit) - 1) / int64(limit)),
+	}
+
+	return reflections, pagination, nil
 }
 
 // NudgeRepository defines nudge data access interface
@@ -236,13 +295,27 @@ func (r *consentRepository) Update(ctx context.Context, consent *models.UserCons
 }
 
 func (r *consentRepository) GetByUser(ctx context.Context, userID uuid.UUID) ([]*models.UserConsent, error) {
-	// Stub implementation
-	return nil, errors.New("not implemented 306")
+	var consents []*models.UserConsent
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC").Find(&consents).Error
+	if err != nil {
+		return nil, err
+	}
+	return consents, nil
 }
 
 func (r *consentRepository) GetByType(ctx context.Context, userID uuid.UUID, consentType string) (*models.UserConsent, error) {
-	// Stub implementation
-	return nil, errors.New("not implemented 307")
+	var consent models.UserConsent
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND consent_type = ?", userID, consentType).
+		Order("created_at DESC").
+		First(&consent).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &consent, nil
 }
 
 // AuditLogRepository defines audit log data access interface
@@ -268,13 +341,57 @@ func (r *auditLogRepository) Create(ctx context.Context, log *models.AuditLog) e
 }
 
 func (r *auditLogRepository) List(ctx context.Context, opts FilterOptions) ([]*models.AuditLog, *PaginationResult, error) {
-	// Stub implementation
-	return nil, nil, errors.New("not implemented 308")
+	var logs []*models.AuditLog
+	query := r.db.WithContext(ctx).Model(&models.AuditLog{})
+
+	// Apply filters
+	if opts.UserID != uuid.Nil {
+		query = query.Where("user_id = ?", opts.UserID)
+	}
+
+	// Count total
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, nil, err
+	}
+
+	// Apply pagination
+	page := opts.Page
+	if page < 1 {
+		page = 1
+	}
+	limit := opts.Limit
+	if limit < 1 {
+		limit = 20
+	}
+
+	offset := (page - 1) * limit
+	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&logs).Error
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pagination := &PaginationResult{
+		Total:      total,
+		Page:       page,
+		Limit:      limit,
+		TotalPages: int((total + int64(limit) - 1) / int64(limit)),
+	}
+
+	return logs, pagination, nil
 }
 
 func (r *auditLogRepository) GetByUser(ctx context.Context, userID uuid.UUID) ([]*models.AuditLog, error) {
-	// Stub implementation
-	return nil, errors.New("not implemented 309")
+	var logs []*models.AuditLog
+	err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("created_at DESC").
+		Limit(100).
+		Find(&logs).Error
+	if err != nil {
+		return nil, err
+	}
+	return logs, nil
 }
 
 // DataExportRepository defines data export data access interface
@@ -314,6 +431,16 @@ func (r *dataExportRepository) FindByID(ctx context.Context, id uuid.UUID) (*mod
 }
 
 func (r *dataExportRepository) GetPending(ctx context.Context, userID uuid.UUID) (*models.DataExport, error) {
-	// Stub implementation
-	return nil, errors.New("not implemented 310")
+	var export models.DataExport
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND status IN ?", userID, []string{"pending", "processing"}).
+		Order("created_at DESC").
+		First(&export).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // No pending export
+		}
+		return nil, err
+	}
+	return &export, nil
 }
