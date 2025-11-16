@@ -153,7 +153,7 @@ func main() {
 	// Initialize services
 	authService := services.NewAuthService(repos.User, redisClient, cfg.JWT, cfg, analyticsService)
 	userService := services.NewUserService(repos.User, storageService, analyticsService)
-	personService := services.NewPersonService(repos.Person, analyticsService)
+	personService := services.NewPersonService(repos.Person, analyticsService, storageService)
 	interactionService := services.NewInteractionService(repos.Interaction, repos.Person, analyticsService)
 	reflectionService := services.NewReflectionService(repos.Reflection)
 	nudgeService := services.NewNudgeService(repos.Nudge, notificationService, analyticsService)

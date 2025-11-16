@@ -224,7 +224,41 @@ func (h *personHandler) UploadAvatar(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid person ID"})
 	}
 
-	// Check if the request contains a JSON body with avatar_url
+	// Check if request is multipart/form-data (file upload)
+	contentType := string(c.Request().Header.ContentType())
+	if len(contentType) > 0 && (contentType[:19] == "multipart/form-data" || contentType[:9] == "image/png" || contentType[:10] == "image/jpeg" || contentType[:9] == "image/jpg") {
+		// Handle file upload
+		file, err := c.FormFile("file")
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "No file provided"})
+		}
+
+		// Open the uploaded file
+		fileHandle, err := file.Open()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to read file"})
+		}
+		defer fileHandle.Close()
+
+		// Read file data
+		fileData := make([]byte, file.Size)
+		if _, err := fileHandle.Read(fileData); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to read file data"})
+		}
+
+		// Upload to storage
+		person, err := h.personService.UploadAvatar(c.Context(), userID, personID, fileData, file.Header.Get("Content-Type"))
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to upload avatar", "details": err.Error()})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"data":    person,
+		})
+	}
+
+	// Fallback: Check if the request contains a JSON body with avatar_url
 	var req struct {
 		AvatarURL string `json:"avatar_url"`
 	}
@@ -234,10 +268,10 @@ func (h *personHandler) UploadAvatar(c *fiber.Ctx) error {
 	}
 
 	if req.AvatarURL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "avatar_url is required"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "avatar_url is required or file must be provided"})
 	}
 
-	// Update the person's avatar URL
+	// Update the person's avatar URL directly (no file upload)
 	updates := map[string]interface{}{
 		"avatar_url": req.AvatarURL,
 	}
