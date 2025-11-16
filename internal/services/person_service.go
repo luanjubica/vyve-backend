@@ -190,8 +190,9 @@ func (s *personService) Delete(ctx context.Context, userID, personID uuid.UUID) 
 
 // Restore restores a deleted person
 func (s *personService) Restore(ctx context.Context, userID, personID uuid.UUID) error {
-	// TODO: Implement restore logic
-	return errors.New("not implemented 401")
+	// Restore soft-deleted person
+	// This uses GORM's Unscoped() to access soft-deleted records
+	return repository.Restore(ctx, s.personRepo.(*repository.PersonRepository).DB(), &models.Person{}, personID)
 }
 
 // CountPeople returns the total number of people for a user

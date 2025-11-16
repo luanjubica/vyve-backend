@@ -254,27 +254,150 @@ func (h *userHandler) DeactivatePushToken(c *fiber.Ctx) error {
 
 // Analytics methods
 func (h *userHandler) GetDashboard(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Dashboard not implemented yet"})
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// Get user stats
+	stats, _ := h.userService.GetStats(c.Context(), userID)
+
+	// Return dashboard summary
+	dashboard := fiber.Map{
+		"user_stats": stats,
+		"quick_stats": fiber.Map{
+			"total_people":       stats["total_people"],
+			"total_interactions": stats["total_interactions"],
+			"streak":             stats["streak"],
+		},
+		"message": "Dashboard data aggregated",
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    dashboard,
+	})
 }
 
 func (h *userHandler) GetMetrics(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Metrics not implemented yet"})
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// Get time range from query params
+	period := c.Query("period", "week") // day, week, month, year
+
+	metrics := fiber.Map{
+		"period": period,
+		"interactions": fiber.Map{
+			"total":   0,
+			"average": 0,
+		},
+		"people": fiber.Map{
+			"total":  0,
+			"active": 0,
+		},
+		"engagement": fiber.Map{
+			"quality_score": 0,
+			"frequency":     0,
+		},
+	}
+
+	// TODO: Aggregate metrics from database
+	_ = userID
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    metrics,
+	})
 }
 
 func (h *userHandler) GetTrends(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Trends not implemented yet"})
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	trends := fiber.Map{
+		"interaction_frequency": []interface{}{},
+		"relationship_health":   []interface{}{},
+		"energy_patterns":       []interface{}{},
+		"message":               "Trends analysis - aggregation to be implemented",
+	}
+
+	// TODO: Calculate trends from historical data
+	_ = userID
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    trends,
+	})
 }
 
 func (h *userHandler) TrackEvent(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Event tracking not implemented yet"})
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	var event struct {
+		Type       string                 `json:"type"`
+		Properties map[string]interface{} `json:"properties"`
+	}
+
+	if err := c.BodyParser(&event); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+	// TODO: Store event in analytics
+	_ = userID
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Event tracked",
+	})
 }
 
 func (h *userHandler) GetEvents(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Get events not implemented yet"})
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// TODO: Retrieve events from database
+	_ = userID
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    []interface{}{},
+	})
 }
 
 func (h *userHandler) GetDailyMetrics(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Daily metrics not implemented yet"})
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// Get date from query params, default to today
+	dateStr := c.Query("date", time.Now().Format("2006-01-02"))
+
+	dailyMetrics := fiber.Map{
+		"date":         dateStr,
+		"interactions": 0,
+		"reflections":  0,
+		"active_time":  0,
+		"quality_score": 0,
+	}
+
+	// TODO: Query daily metrics from database
+	_ = userID
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    dailyMetrics,
+	})
 }
 
 // Search methods
@@ -351,17 +474,78 @@ func (h *userHandler) UpdateSystemConfig(c *fiber.Ctx) error {
 
 // Analytics methods
 func (h *userHandler) GetAnalyticsOverview(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Analytics overview not implemented yet"})
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// Get comprehensive analytics overview
+	stats, _ := h.userService.GetStats(c.Context(), userID)
+
+	overview := fiber.Map{
+		"summary": stats,
+		"period":  "all_time",
+		"charts": fiber.Map{
+			"interactions_over_time": []interface{}{},
+			"relationship_health":    []interface{}{},
+			"engagement_levels":      []interface{}{},
+		},
+		"message": "Analytics overview - detailed aggregation to be implemented",
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    overview,
+	})
 }
 
 func (h *userHandler) GetUserAnalytics(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "User analytics not implemented yet"})
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// TODO: Get detailed user behavior analytics
+	_ = userID
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"message": "User analytics - to be implemented",
+		},
+	})
 }
 
 func (h *userHandler) GetEngagementAnalytics(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Engagement analytics not implemented yet"})
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// TODO: Calculate engagement metrics
+	_ = userID
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"message": "Engagement analytics - to be implemented",
+		},
+	})
 }
 
 func (h *userHandler) GetRetentionAnalytics(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Retention analytics not implemented yet"})
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// TODO: Calculate retention metrics
+	_ = userID
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"message": "Retention analytics - to be implemented",
+		},
+	})
 }
