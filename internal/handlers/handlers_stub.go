@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+	"github.com/vyve/vyve-backend/internal/repository"
 	"github.com/vyve/vyve-backend/internal/services"
 )
 
@@ -28,6 +30,7 @@ func (h *reflectionHandler) List(c *fiber.Ctx) error {
 	}
 
 	// TODO: Implement list with pagination
+	_ = userID
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    []interface{}{},
