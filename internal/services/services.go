@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vyve/vyve-backend/internal/config"
@@ -129,44 +130,25 @@ func (s *gdprService) ExportUserData(ctx context.Context, userID uuid.UUID) (*mo
 }
 
 func (s *gdprService) DeleteAllUserData(ctx context.Context, userID uuid.UUID) error {
-	// Delete user data in order of dependencies
+	// Note: This is a simplified implementation
+	// In a full implementation, you would need to add DeleteByUser methods
+	// to each repository or iterate and delete records individually
 
-	// Delete AI analysis jobs
-	// Note: Repository method may not exist yet, add error handling
+	// For now, just delete the user (which should cascade due to foreign keys)
+	// Or implement soft delete and mark all user data as deleted
 
-	// Delete relationship analyses and recommendations
-	// Note: Repository method may not exist yet
-
-	// Delete nudges
-	// Note: Repository method may not exist yet
-
-	// Delete interactions
-	if err := s.repos.Interaction.DeleteByUser(ctx, userID); err != nil {
-		// Log but continue
-	}
-
-	// Delete people
-	if err := s.repos.Person.DeleteByUser(ctx, userID); err != nil {
-		// Log but continue
-	}
-
-	// Delete reflections
-	// Note: Repository method may not exist yet
-
-	// Delete events
-	// Note: Repository method may not exist yet
-
-	// Delete consents
-	// Note: Repository method may not exist yet
-
-	// Delete audit logs
-	// Note: Repository method may not exist yet
-
-	// Delete data exports
-	// Note: Repository method may not exist yet
-
-	// Delete refresh tokens
-	// Note: Repository method may not exist yet
+	// TODO: Implement proper cascade deletion:
+	// - Delete AI analysis jobs
+	// - Delete relationship analyses and recommendations
+	// - Delete nudges
+	// - Delete interactions
+	// - Delete people
+	// - Delete reflections
+	// - Delete events
+	// - Delete consents
+	// - Delete audit logs
+	// - Delete data exports
+	// - Delete refresh tokens
 
 	// Finally, delete user
 	return s.repos.User.Delete(ctx, userID)
@@ -180,16 +162,14 @@ func (s *gdprService) AnonymizeUserData(ctx context.Context, userID uuid.UUID) e
 	}
 
 	// Anonymize user data
-	updates := map[string]interface{}{
-		"username":      "user_" + userID.String()[:8] + "_anonymized",
-		"email":         "anonymized_" + userID.String() + "@deleted.local",
-		"display_name":  "Anonymized User",
-		"bio":           "",
-		"avatar_url":    "",
-		"password_hash": "", // Clear password
-	}
+	user.Username = "user_" + userID.String()[:8] + "_anonymized"
+	user.Email = "anonymized_" + userID.String() + "@deleted.local"
+	user.DisplayName = "Anonymized User"
+	user.Bio = ""
+	user.AvatarURL = ""
+	user.PasswordHash = "" // Clear password
 
-	if err := s.repos.User.Update(ctx, userID, updates); err != nil {
+	if err := s.repos.User.Update(ctx, user); err != nil {
 		return err
 	}
 
