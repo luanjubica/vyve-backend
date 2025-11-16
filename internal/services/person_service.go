@@ -48,6 +48,7 @@ type CreatePersonRequest struct {
 	Name                  string     `json:"name" validate:"required"`
 	CategoryID            *uuid.UUID `json:"category_id"`
 	Relationship          string     `json:"relationship"`
+	AvatarURL             string     `json:"avatar_url"`
 	CommunicationMethodID *uuid.UUID `json:"communication_method_id"`
 	RelationshipStatusID  *uuid.UUID `json:"relationship_status_id"`
 	IntentionID           *uuid.UUID `json:"intention_id"`
@@ -73,6 +74,7 @@ func (s *personService) Create(ctx context.Context, userID uuid.UUID, req Create
 		UserID:                userID,
 		Name:                  req.Name,
 		Relationship:          req.Relationship,
+		AvatarURL:             req.AvatarURL,
 		CategoryID:            req.CategoryID,
 		CommunicationMethodID: req.CommunicationMethodID,
 		RelationshipStatusID:  req.RelationshipStatusID,
