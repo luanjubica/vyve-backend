@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
