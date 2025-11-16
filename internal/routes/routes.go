@@ -153,13 +153,14 @@ func setupProtectedRoutes(api fiber.Router, h *Handlers) {
 			log.Printf("🎯 ROUTE MATCHED: /people/:id with id='%s'", c.Params("id"))
 			return h.Person.Get(c)
 		}) // GET /people/:id
-		people.Put("/:id", h.Person.Update)                       // PUT /people/:id
-		people.Delete("/:id", h.Person.Delete)                    // DELETE /people/:id
-		people.Post("/:id/restore", h.Person.Restore)             // POST /people/:id/restore
-		people.Get("/:id/interactions", h.Person.GetInteractions) // GET /people/:id/interactions
-		people.Get("/:id/health", h.Person.GetHealthScore)        // GET /people/:id/health
-		people.Put("/:id/reminder", h.Person.UpdateReminder)      // PUT /people/:id/reminder
-		
+		people.Put("/:id", h.Person.Update)                           // PUT /people/:id
+		people.Delete("/:id", h.Person.Delete)                        // DELETE /people/:id
+		people.Post("/:id/restore", h.Person.Restore)                 // POST /people/:id/restore
+		people.Post("/:id/upload-avatar", h.Person.UploadAvatar)      // POST /people/:id/upload-avatar
+		people.Get("/:id/interactions", h.Person.GetInteractions)     // GET /people/:id/interactions
+		people.Get("/:id/health", h.Person.GetHealthScore)            // GET /people/:id/health
+		people.Put("/:id/reminder", h.Person.UpdateReminder)          // PUT /people/:id/reminder
+
 		// AI Analysis endpoints
 		people.Get("/:id/analysis", h.Analysis.GetPersonAnalysis)              // GET /people/:id/analysis
 		people.Post("/:id/analysis/refresh", h.Analysis.RefreshPersonAnalysis) // POST /people/:id/analysis/refresh
