@@ -232,7 +232,116 @@ func (h *userHandler) ChangePassword(c *fiber.Ctx) error {
 
 // UploadAvatar handles POST /users/me/upload-avatar
 func (h *userHandler) UploadAvatar(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Upload avatar not implemented yet"})
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// Check if request is multipart/form-data (file upload)
+	contentType := string(c.Request().Header.ContentType())
+	if len(contentType) > 0 && (contentType[:19] == "multipart/form-data" || contentType[:9] == "image/png" || contentType[:10] == "image/jpeg" || contentType[:9] == "image/jpg") {
+		// Handle file upload
+		file, err := c.FormFile("file")
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "No file provided"})
+		}
+
+		// Open the uploaded file
+		fileHandle, err := file.Open()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to read file"})
+		}
+		defer fileHandle.Close()
+
+		// Read file data
+		fileData := make([]byte, file.Size)
+		if _, err := fileHandle.Read(fileData); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to read file data"})
+		}
+
+		// Upload to storage
+		avatarURL, err := h.userService.UploadAvatar(c.Context(), userID, fileData, file.Header.Get("Content-Type"))
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to upload avatar", "details": err.Error()})
+		}
+
+		// Get updated user profile
+		user, err := h.userService.GetByID(c.Context(), userID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get updated user profile"})
+		}
+
+		response := UserProfileResponse{
+			ID:                  user.ID.String(),
+			Username:            user.Username,
+			Email:               user.Email,
+			EmailVerified:       user.EmailVerified,
+			AvatarURL:           avatarURL,
+			DisplayName:         user.DisplayName,
+			Bio:                 user.Bio,
+			Timezone:            user.Timezone,
+			Locale:              user.Locale,
+			LastLoginAt:         user.LastLoginAt,
+			LastActivityAt:      user.LastActivityAt,
+			StreakCount:         user.StreakCount,
+			LastReflectionAt:    user.LastReflectionAt,
+			Settings:            user.Settings,
+			OnboardingCompleted: user.OnboardingCompleted,
+			CreatedAt:           user.CreatedAt,
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"data":    response,
+		})
+	}
+
+	// Fallback: Check if the request contains a JSON body with avatar_url
+	var req struct {
+		AvatarURL string `json:"avatar_url"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	if req.AvatarURL == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "avatar_url is required or file must be provided"})
+	}
+
+	// Update the user's avatar URL directly (no file upload)
+	updates := map[string]interface{}{
+		"avatar_url": req.AvatarURL,
+	}
+
+	user, err := h.userService.Update(c.Context(), userID, updates)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update avatar"})
+	}
+
+	response := UserProfileResponse{
+		ID:                  user.ID.String(),
+		Username:            user.Username,
+		Email:               user.Email,
+		EmailVerified:       user.EmailVerified,
+		AvatarURL:           user.AvatarURL,
+		DisplayName:         user.DisplayName,
+		Bio:                 user.Bio,
+		Timezone:            user.Timezone,
+		Locale:              user.Locale,
+		LastLoginAt:         user.LastLoginAt,
+		LastActivityAt:      user.LastActivityAt,
+		StreakCount:         user.StreakCount,
+		LastReflectionAt:    user.LastReflectionAt,
+		Settings:            user.Settings,
+		OnboardingCompleted: user.OnboardingCompleted,
+		CreatedAt:           user.CreatedAt,
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
 }
 
 // Implement the remaining UserHandler interface methods with stubs
@@ -384,10 +493,10 @@ func (h *userHandler) GetDailyMetrics(c *fiber.Ctx) error {
 	dateStr := c.Query("date", time.Now().Format("2006-01-02"))
 
 	dailyMetrics := fiber.Map{
-		"date":         dateStr,
-		"interactions": 0,
-		"reflections":  0,
-		"active_time":  0,
+		"date":          dateStr,
+		"interactions":  0,
+		"reflections":   0,
+		"active_time":   0,
 		"quality_score": 0,
 	}
 

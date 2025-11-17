@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -95,12 +97,24 @@ func (s *userService) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 // UploadAvatar uploads user avatar
-func (s *userService) UploadAvatar(ctx context.Context, userID uuid.UUID, file []byte, filename string) (string, error) {
-	// Generate unique filename
-	key := "avatars/" + userID.String() + "/" + uuid.New().String()
+func (s *userService) UploadAvatar(ctx context.Context, userID uuid.UUID, file []byte, contentType string) (string, error) {
+	// Determine file extension from content type
+	extension := ".jpg"
+	contentTypeLower := strings.ToLower(contentType)
+	if strings.Contains(contentTypeLower, "png") {
+		extension = ".png"
+	} else if strings.Contains(contentTypeLower, "gif") {
+		extension = ".gif"
+	} else if strings.Contains(contentTypeLower, "webp") {
+		extension = ".webp"
+	}
+
+	// Generate unique filename with proper extension
+	fileID := uuid.New().String()
+	key := fmt.Sprintf("avatars/%s/%s%s", userID.String(), fileID, extension)
 
 	// Upload to storage
-	url, err := s.storage.Upload(ctx, key, file, "image/jpeg")
+	url, err := s.storage.Upload(ctx, key, file, contentType)
 	if err != nil {
 		return "", err
 	}
